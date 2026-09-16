@@ -1,0 +1,100 @@
+version: '3.8'
+
+networks:
+  rutaexpress-net:
+    driver: bridge
+
+services:
+  catalog-svc:
+    build:
+      context: ./ms-rutaexpress-catalog
+      dockerfile: Dockerfile
+    container_name: rtx-catalog-svc
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - SERVER_PORT=8082
+      - SPRING_PROFILES_ACTIVE=prod
+    networks:
+      - rutaexpress-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  audit-svc:
+    build:
+      context: ./ms-rutaexpress-audit
+      dockerfile: Dockerfile
+    container_name: rtx-audit-svc
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      - SERVER_PORT=8083
+      - SPRING_PROFILES_ACTIVE=prod
+    networks:
+      - rutaexpress-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  shipments-svc:
+    build:
+      context: ./ms-rutaexpress-shipments
+      dockerfile: Dockerfile
+    container_name: rtx-shipments-svc
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - SERVER_PORT=8081
+      - CATALOG_SERVICE_URL=http://catalog-svc:8082
+      - AUDIT_SERVICE_URL=http://audit-svc:8083
+      - SPRING_PROFILES_ACTIVE=prod
+    depends_on:
+      catalog-svc:
+        condition: service_healthy
+      audit-svc:
+        condition: service_healthy
+    networks:
+      - rutaexpress-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  bff-svc:
+    build:
+      context: ./ms-rutaexpress-bff
+      dockerfile: Dockerfile
+    container_name: rtx-bff-svc
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVER_PORT=8080
+      - SHIPMENTS_SERVICE_URL=http://shipments-svc:8081
+      - CATALOG_SERVICE_URL=http://catalog-svc:8082
+      - AUDIT_SERVICE_URL=http://audit-svc:8083
+      - SECURITY_AZURE_ENABLED=false
+      - SPRING_PROFILES_ACTIVE=prod
+    depends_on:
+      shipments-svc:
+        condition: service_healthy
+    networks:
+      - rutaexpress-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/bff/health | grep UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
