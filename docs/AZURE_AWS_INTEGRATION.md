@@ -1,227 +1,182 @@
-# Guía de Integración Cloud: Azure AD (Entra ID) + AWS API Gateway + AWS EC2
+# Guia de Integracion Cloud: Azure Active Directory + AWS API Gateway + AWS EC2
 
-Esta guía técnica explica paso a paso cómo integrar la identidad corporativa de **Microsoft Azure AD (Entra ID)** con **AWS API Gateway**, el despliegue en **AWS EC2** y los microservicios backend de **RutaExpress**.
+Especificacion tecnica para la integracion de identidad federada corporativa basada en Microsoft Entra ID (Azure AD), AWS API Gateway (HTTP API) y el despliegue del cluster de microservicios en Amazon EC2.
 
 ---
 
-## Arquitectura de Seguridad y Flujo de Autenticación
+## 1. Flujo de Autenticacion y Autorizacion
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Usuario (Admin/Despachador/Cliente/Auditor)
+    actor User as Usuario (Admin / Despachador / Cliente / Auditor)
     participant React as Frontend React (MSAL)
-    participant Azure as Azure AD (Entra ID)
+    participant Azure as Azure Active Directory (Entra ID)
     participant APIGW as AWS API Gateway (HTTP API)
     participant BFF as ms-rutaexpress-bff (EC2:8080)
-    participant MS as Microservicios (Shipments/Catalog/Audit)
+    participant MS as Microservicios de Dominio
 
-    User->>React: Clic en "Iniciar sesión con Microsoft"
-    React->>Azure: Autenticación OAuth2 / OIDC (PKCE)
-    Azure-->>React: Retorna id_token y access_token (JWT con App Roles)
-    React->>APIGW: HTTP Request con Header: Authorization: Bearer <access_token>
-    APIGW->>Azure: Valida firma JWT contra JWKS (https://login.microsoftonline.com/<TENANT>/discovery/v2.0/keys)
-    APIGW->>APIGW: Valida Issuer y Audience (api://<API_CLIENT_ID>)
-    APIGW->>BFF: Forward request con Bearer Token
-    BFF->>BFF: Spring Security valida roles del JWT (Admin, Despachador, etc.)
-    BFF->>MS: Forward interno o agregación HTTP
-    MS-->>BFF: Retorna datos de negocio
+    User->>React: Inicio de sesion corporativo
+    React->>Azure: Autenticacion OIDC / OAuth2 con PKCE
+    Azure-->>React: Emision de id_token y access_token con claim roles
+    React->>APIGW: Peticion HTTP con header Authorization: Bearer <access_token>
+    APIGW->>Azure: Verificacion de firma digital contra endpoint JWKS
+    APIGW->>APIGW: Validacion de Issuer y Audience
+    APIGW->>BFF: Reenvio de la peticion con token verificado
+    BFF->>BFF: Spring Security evalua roles requeridos por el endpoint
+    BFF->>MS: Llamada interna al microservicio de dominio
+    MS-->>BFF: Retorno de datos de negocio
     BFF-->>APIGW: Respuesta HTTP
-    APIGW-->>React: Respuesta HTTP JSON
+    APIGW-->>React: Respuesta JSON
 ```
 
 ---
 
-## 1. Configuración en Azure Active Directory (Microsoft Entra ID)
+## 2. Configuracion en Azure Active Directory (Microsoft Entra ID)
 
-### Paso 1.1: Registrar la Aplicación Backend (Resource Server)
-1. Inicia sesión en el portal de Azure: [https://portal.azure.com](https://portal.azure.com).
-2. Ve a **Microsoft Entra ID** > **App registrations** (Registros de aplicaciones) > **New registration** (Nuevo registro).
-3. Configura:
-   - **Name**: `RutaExpress-Backend-API`
-   - **Supported account types**: *Accounts in this organizational directory only (Single tenant)*
-   - Clic en **Register**.
-4. Anota los siguientes valores de la pantalla de visión general:
-   - **Application (client) ID**: `<BACKEND_CLIENT_ID>`
-   - **Directory (tenant) ID**: `<TENANT_ID>`
-5. Ve a **Expose an API** (Exponer una API):
-   - Clic en **Set** en *Application ID URI*.
-   - Configura: `api://<BACKEND_CLIENT_ID>`.
-   - Clic en **Add a scope**:
-     - Scope name: `access_as_user`
-     - Who can consent: *Admins and users*
-     - Admin consent display name: *Acceso a APIs de RutaExpress*
-     - State: *Enabled*.
+### 2.1 Registro de la Aplicacion Backend (Resource Server)
+1. Iniciar sesion en el portal de administracion de Azure (https://portal.azure.com).
+2. Navegar a **Microsoft Entra ID** > **App registrations** > **New registration**.
+3. Ingresar:
+   - Name: `RutaExpress-Backend-API`
+   - Supported account types: *Accounts in this organizational directory only (Single tenant)*
+4. Confirmar el registro y registrar los valores asignados:
+   - Application (client) ID: `<BACKEND_CLIENT_ID>`
+   - Directory (tenant) ID: `<TENANT_ID>`
+5. Acceder a la seccion **Expose an API**:
+   - En *Application ID URI*, configurar: `api://<BACKEND_CLIENT_ID>`.
+   - Agregar un scope llamado `access_as_user` con consentimiento para administradores y usuarios.
 
-### Paso 1.2: Definir los Roles de la Aplicación (App Roles)
-En el menú lateral de la app `RutaExpress-Backend-API`:
-1. Ve a **App roles** > **Create app role**.
-2. Crea los 4 roles especificados en el caso:
-   - **Rol 1 (Admin)**:
-     - Display name: `Admin`
-     - Allowed member types: `Users/Groups`
-     - Value: `Admin`
-     - Description: *Administra servicios, capacidad y visualiza KPIs de la red.*
-   - **Rol 2 (Despachador)**:
-     - Display name: `Despachador`
-     - Allowed member types: `Users/Groups`
-     - Value: `Despachador`
-     - Description: *Acepta envíos, gestiona rutas y marca entregas.*
-   - **Rol 3 (Cliente)**:
-     - Display name: `Cliente`
-     - Allowed member types: `Users/Groups`
-     - Value: `Cliente`
-     - Description: *Crea envíos y realiza el seguimiento de su carga.*
-   - **Rol 4 (Auditor)**:
-     - Display name: `Auditor`
-     - Allowed member types: `Users/Groups`
-     - Value: `Auditor`
-     - Description: *Consulta el timeline de eventos de trazabilidad. Solo lectura.*
+### 2.2 Definicion de App Roles
+En el menu lateral de `RutaExpress-Backend-API`, acceder a **App roles** y crear los roles del caso:
 
-### Paso 1.3: Registrar la Aplicación Frontend (React SPA)
-1. Ve a **App registrations** > **New registration**.
-2. Configura:
-   - **Name**: `RutaExpress-Frontend-React`
-   - **Supported account types**: *Single tenant*
-   - **Redirect URI**: Plataforma **SPA (Single-page application)**, URI: `http://localhost:5173` (desarrollo) y `https://<TU_DOMINIO_PROD>` (producción).
-3. Clic en **API permissions** > **Add a permission**:
-   - Selecciona **My APIs** > Elige `RutaExpress-Backend-API`.
-   - Selecciona **Delegated permissions** > Marca `access_as_user`.
-   - Clic en **Grant admin consent for <TU_ORGANIZACION>**.
+- **Admin**:
+  - Display name: `Admin`
+  - Allowed member types: `Users/Groups`
+  - Value: `Admin`
+  - Description: Administracion de servicios, tarifas, flota y KPIs globales.
+- **Despachador**:
+  - Display name: `Despachador`
+  - Allowed member types: `Users/Groups`
+  - Value: `Despachador`
+  - Description: Recepcion, preparacion en bodega y marcaje de despacho y entrega.
+- **Cliente**:
+  - Display name: `Cliente`
+  - Allowed member types: `Users/Groups`
+  - Value: `Cliente`
+  - Description: Creacion y consulta de solicitudes de despacho.
+- **Auditor**:
+  - Display name: `Auditor`
+  - Allowed member types: `Users/Groups`
+  - Value: `Auditor`
+  - Description: Consulta de trazabilidad y eventos logísticos en modo solo lectura.
 
-### Paso 1.4: Asignar Roles a los Usuarios
-1. Ve a **Microsoft Entra ID** > **Enterprise applications** (Aplicaciones empresariales).
-2. Busca y selecciona `RutaExpress-Backend-API`.
-3. Ve a **Users and groups** > **Add user/group**:
-   - Selecciona los usuarios de prueba y asígnales el rol respectivo (`Admin`, `Despachador`, `Cliente` o `Auditor`).
-   *Nota: Cuando este usuario inicie sesión, Azure AD incluirá en el JWT el claim `"roles": ["Despachador"]`.*
+### 2.3 Registro de la Aplicacion Frontend (React SPA)
+1. Crear un nuevo registro:
+   - Name: `RutaExpress-Frontend-React`
+   - Redirect URI: Plataforma **SPA**, URI: `http://localhost:5173` (entorno local) o `https://<DOMINIO_PROD>`.
+2. En **API permissions** > **Add a permission** > **My APIs**:
+   - Seleccionar `RutaExpress-Backend-API`.
+   - Marcar el permiso delegado `access_as_user` y otorgar consentimiento de administrador (*Grant admin consent*).
+
+### 2.4 Asignacion de Roles a Usuarios
+1. Navegar a **Microsoft Entra ID** > **Enterprise applications** > `RutaExpress-Backend-API`.
+2. En la seccion **Users and groups**, asignar a cada usuario corporativo su rol respectivo. El token JWT resultante incluira el claim `"roles": ["Despachador"]`.
 
 ---
 
-## 2. Configuración en AWS API Gateway (HTTP API)
+## 3. Configuracion en AWS API Gateway (HTTP API)
 
-Utilizaremos **HTTP API** de AWS API Gateway debido a su soporte nativo para **JWT Authorizers** de alto rendimiento y bajo costo.
+### 3.1 Creacion de la HTTP API
+1. En la consola de AWS, acceder a **API Gateway** > **Create API** > **HTTP API** (Build).
+2. Especificar el nombre de la API: `rutaexpress-gateway`.
+3. Avanzar a la creacion inicial.
 
-### Paso 2.1: Crear el HTTP API
-1. En la consola de AWS, busca **API Gateway**.
-2. Clic en **Create API** > En la tarjeta **HTTP API**, clic en **Build**.
-3. **API details**:
-   - API Name: `rutaexpress-gateway`
-4. Clic en **Next**, luego en **Next** (dejar rutas para el siguiente paso) y en **Create**.
+### 3.2 Creacion del JWT Authorizer
+1. Dentro de la API creada, seleccionar **Authorization** > **Manage authorizers** > **Create**.
+2. Configurar los parametros:
+   - Authorizer type: `JWT`
+   - Name: `AzureAD-Authorizer`
+   - Identity source: `$request.header.Authorization`
+   - Issuer URL: `https://login.microsoftonline.com/<TENANT_ID>/v2.0`
+   - Audience: `api://<BACKEND_CLIENT_ID>`
+3. Guardar el autorizador. AWS validara de forma autonoma las claves criptograficas publicas de Microsoft Entra ID.
 
-### Paso 2.2: Crear el JWT Authorizer
-1. En el menú lateral izquierdo de tu API, haz clic en **Authorization** (Bajo *Develop*).
-2. Haz clic en la pestaña **Manage authorizers** > **Create**.
-3. Configura los parámetros:
-   - **Authorizer type**: `JWT`
-   - **Name**: `AzureAD-EntraID-Authorizer`
-   - **Identity source**: `$request.header.Authorization`
-   - **Issuer URL**:
-     ```text
-     https://login.microsoftonline.com/<TENANT_ID>/v2.0
-     ```
-   - **Audience**:
-     ```text
-     api://<BACKEND_CLIENT_ID>
-     ```
-4. Clic en **Create**.
-   *AWS validará automáticamente la firma criptográfica de cada request consultando las claves públicas de Microsoft Entra ID (`/.well-known/openid-configuration` y JWKS).*
-
-### Paso 2.3: Configurar la Integración hacia el BFF en EC2
-1. En el menú lateral, ve a **Integrations** > **Create**.
-2. **Integration type**: `HTTP URI`
-3. **Integration details**:
+### 3.3 Integracion con el Servidor EC2
+1. En **Integrations** > **Create**:
+   - Integration type: `HTTP URI`
    - HTTP method: `ANY`
-   - URL: `http://<EC2_PUBLIC_IP_OR_DNS>:8080/{proxy}`
-4. Clic en **Create**.
-
-### Paso 2.4: Configurar Rutas y Proteger con el Authorizer
-1. En el menú lateral, ve a **Routes** > **Create**.
-2. Configura:
+   - URL: `http://<IP_PUBLICA_EC2_O_DNS>:8080/{proxy}`
+2. En **Routes**, crear la ruta comodin:
    - Route: `ANY /{proxy+}`
-   - Integration: Selecciona la integración HTTP creada hacia el BFF.
-   - Authorization: Selecciona `AzureAD-EntraID-Authorizer`.
-3. Para endpoints de healthcheck público (opcional):
-   - Crear ruta: `GET /api/bff/health` con Authorization: `None`.
+   - Attach integration: Seleccionar la integracion creada.
+   - Authorization: Asignar `AzureAD-Authorizer`.
 
 ---
 
-## 3. Despliegue del Backend en AWS EC2
+## 4. Despliegue en AWS EC2
 
-### Paso 3.1: Configuración de Security Groups en AWS
-En la consola de Amazon EC2, crea un **Security Group** con las siguientes reglas de entrada (Inbound Rules):
+### 4.1 Reglas de Firewall (Security Groups)
 
-| Tipo | Puerto | Protocolo | Origen | Propósito |
-|---|---|---|---|---|
-| SSH | 22 | TCP | `Tu_IP_Administrador/32` | Acceso seguro a la consola del servidor |
-| Custom TCP | 8080 | TCP | `0.0.0.0/0` (o IP/VPC de API Gateway) | Tráfico público/gateway hacia `ms-rutaexpress-bff` |
+| Protocolo | Puerto | Origen | Proposito |
+|---|---|---|---|
+| TCP | 22 | IP_Administrador/32 | Acceso administrativo por SSH |
+| TCP | 8080 | 0.0.0.0/0 (o VPC/CIDR de API Gateway) | Trafico de entrada hacia ms-rutaexpress-bff |
 
-> [!IMPORTANT]
-> Los puertos de los microservicios internos (`8081` para shipments, `8082` para catalog, `8083` para audit) **NUNCA deben exponerse públicamente en el Security Group**. La comunicación entre ellos se realiza a través de la red interna Docker (`rutaexpress-net`).
+Nota de seguridad: Los puertos de los microservicios internos (8081, 8082, 8083) no deben declararse en las reglas de entrada del Security Group; operan exclusivamente dentro de la red privada de Docker.
 
-### Paso 3.2: Instalación de Docker y Docker Compose en la Instancia EC2
-Conéctate por SSH a tu instancia EC2:
+### 4.2 Script de Instalacion en la Instancia EC2
+
 ```bash
-ssh -i "tu-llave.pem" ec2-user@<EC2_PUBLIC_IP>
-```
-
-Ejecuta los siguientes comandos para preparar el entorno:
-```bash
-# Actualizar el sistema
+# Actualizar repositorios del sistema
 sudo dnf update -y || sudo yum update -y
 
-# Instalar Docker
+# Instalar Docker Engine
 sudo dnf install -y docker || sudo yum install -y docker
 sudo systemctl enable --now docker
-sudo usermod -aG docker $USER
+sudo usermod -aG docker ec2-user
 
-# Instalar Docker Compose (v2)
+# Instalar Docker Compose v2
 sudo mkdir -p /usr/local/lib/docker/cli-plugins
 sudo curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
 sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# Aplicar permisos al usuario actual
+# Aplicar permisos al usuario
 newgrp docker
 ```
 
-### Paso 3.3: Clonar el Repositorio y Desplegar
-```bash
-# Clonar el proyecto
-git clone https://github.com/separd-sudo/<NOMBRE_REPO>.git
-cd <NOMBRE_REPO>
+### 4.3 Despliegue del Stack
 
-# Configurar variables para validar JWT en producción (opcional)
+```bash
+# Clonar el repositorio
+git clone https://github.com/Separd-sudo/rutaexpress-backend.git
+cd rutaexpress-backend
+
+# Configurar variables de produccion
 export SECURITY_AZURE_ENABLED=true
 export AZURE_JWT_ISSUER_URI=https://login.microsoftonline.com/<TENANT_ID>/v2.0
 export AZURE_JWK_SET_URI=https://login.microsoftonline.com/<TENANT_ID>/discovery/v2.0/keys
 
-# Levantar el stack completo de microservicios
+# Iniciar los servicios
 docker compose up -d --build
-
-# Verificar el estado de los contenedores
-docker compose ps
 ```
 
 ---
 
-## 4. Conexión desde el Frontend React (MSAL React)
+## 5. Integracion con React (MSAL)
 
-Para consumir la plataforma desde React, instala las dependencias oficiales:
-```bash
-npm install @azure/msal-browser @azure/msal-react axios
-```
+Configuracion en `src/authConfig.js`:
 
-### Configuración de MSAL (`src/authConfig.js`):
 ```javascript
 export const msalConfig = {
   auth: {
     clientId: "<FRONTEND_CLIENT_ID>",
     authority: "https://login.microsoftonline.com/<TENANT_ID>",
-    redirectUri: "http://localhost:5173",
+    redirectUri: "http://localhost:5173"
   },
   cache: {
     cacheLocation: "sessionStorage",
-    storeAuthStateInCookie: false,
+    storeAuthStateInCookie: false
   }
 };
 
@@ -230,7 +185,8 @@ export const loginRequest = {
 };
 ```
 
-### Interceptor Axios para invocar el API Gateway:
+Interceptor de cliente HTTP (Axios) para inyectar el Bearer token:
+
 ```javascript
 import axios from "axios";
 import { PublicClientApplication } from "@azure/msal-browser";
@@ -239,32 +195,20 @@ import { msalConfig, loginRequest } from "./authConfig";
 const msalInstance = new PublicClientApplication(msalConfig);
 
 const apiClient = axios.create({
-  baseURL: "https://<TU_API_GATEWAY_ID>.execute-api.<REGION>.amazonaws.com"
+  baseURL: "https://<API_GATEWAY_ID>.execute-api.<REGION>.amazonaws.com"
 });
 
 apiClient.interceptors.request.use(async (config) => {
   const accounts = msalInstance.getAllAccounts();
   if (accounts.length > 0) {
-    const response = await msalInstance.acquireTokenSilent({
+    const tokenResponse = await msalInstance.acquireTokenSilent({
       ...loginRequest,
       account: accounts[0]
     });
-    config.headers.Authorization = `Bearer ${response.accessToken}`;
+    config.headers.Authorization = `Bearer ${tokenResponse.accessToken}`;
   }
   return config;
 });
 
 export default apiClient;
 ```
-
----
-
-## 5. Matriz de Verificación y Pruebas de Seguridad
-
-| Escenario | Rol Usuario | Endpoint Invocado | Resultado Esperado |
-|---|---|---|---|
-| Crear servicio de catálogo | `Cliente` | `POST /api/bff/catalog/services` | **HTTP 403 Forbidden** (Solo Admin) |
-| Crear servicio de catálogo | `Admin` | `POST /api/bff/catalog/services` | **HTTP 201 Created** |
-| Actualizar estado de envío | `Despachador` | `PUT /api/bff/shipments/1/status` | **HTTP 200 OK** |
-| Consultar auditoría | `Auditor` | `GET /api/bff/audit` | **HTTP 200 OK** |
-| Petición sin token Bearer | Anónimo | `POST /api/bff/shipments` | **HTTP 401 Unauthorized** (API Gateway / BFF) |

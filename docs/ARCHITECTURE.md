@@ -1,10 +1,10 @@
-# Arquitectura Técnica - RutaExpress Backend
+# Arquitectura del Sistema - RutaExpress Backend
 
-## 1. Visión General de la Solución
+## 1. Descripcion de la Arquitectura
 
-RutaExpress es una plataforma Cloud-Native diseñada para la gestión logística de envíos de última milla. El backend está compuesto por 3 microservicios de dominio más un Backend-For-Frontend (BFF), orquestados con Docker y preparados para integración híbrida con Azure AD y AWS.
+RutaExpress adopta un patron de microservicios complementado con Backend-For-Frontend (BFF), estructurado para satisfacer los requisitos de desacoplamiento, trazabilidad y escalabilidad de operaciones de despacho de ultima milla.
 
-```
+```text
                   +-------------------------------+
                   |      Frontend React (MSAL)    |
                   +---------------+---------------+
@@ -29,71 +29,72 @@ RutaExpress es una plataforma Cloud-Native diseñada para la gestión logística
 +-----------------------+ +--------------------+ +---------------------+
 | ms-rutaexpress-       | | ms-rutaexpress-    | | ms-rutaexpress-     |
 | shipments             | | catalog            | | audit               |
-| (Gestión de Envíos)   | | (Servicios y Flota)| | (Trazabilidad)      |
+| (Gestion de Envios)   | | (Servicios y Flota)| | (Trazabilidad)      |
 +-----------+-----------+ +---------+----------+ +----------+----------+
             |                       ^                       ^
             |  Descuenta capacidad  |                       |
             +-----------------------+                       |
             |                                               |
-            +------------ Registro asíncrono de eventos ----+
+            +------------ Registro asincrono de eventos ----+
 ```
 
 ---
 
-## 2. Componentes del Backend
+## 2. Componentes de Software
 
-### 2.1 ms-rutaexpress-bff (Puerto 8080)
-- **Tecnología**: Spring Boot 3.2.4, Spring Security, OAuth2 Resource Server.
-- **Responsabilidad**:
-  - Punto de entrada unificado para clientes HTTP.
-  - Validación de tokens JWT emitidos por Microsoft Entra ID (Azure AD).
-  - Mapeo de App Roles (`Admin`, `Despachador`, `Cliente`, `Auditor`).
-  - Endpoint de agregación `GET /api/bff/shipments/{id}/full-trace` que consolida datos de envío, catálogo y timeline en una sola llamada optimizada para React.
+### 2.1 ms-rutaexpress-bff
+- Rol: Gateway de aplicacion y agregador de consultas para clientes web.
+- Puerto: 8080.
+- Dependencias: Spring Boot Web, Spring Security, OAuth2 Resource Server.
+- Funciones:
+  - Validacion de tokens criptograficos JWT de Microsoft Entra ID.
+  - Conversion de claims mediante `JwtRoleConverter` hacia autoridades `ROLE_*`.
+  - Agregacion en `GET /api/bff/shipments/{id}/full-trace` reuniendo la entidad del envio, la configuracion tarifaria del catalogo y el historial de auditoria en una unica transaccion de lectura.
 
-### 2.2 ms-rutaexpress-shipments (Puerto 8081)
-- **Tecnología**: Spring Boot 3.2.4, Spring Data JPA, H2 / PostgreSQL.
-- **Responsabilidad**:
-  - Ciclo de vida completo del envío: creación, asignación de tracking, actualización de estados.
-  - Cálculo de tarifas según distancia y peso.
-- **Máquina de Estados y Reglas Clave**:
-  - Estados: `CREADO` -> `ACEPTADO` -> `EN_BODEGA` -> `EN_RUTA` -> `ENTREGADO` (o `CANCELADO`).
-  - **Regla 1**: No se puede pasar a `EN_RUTA` sin haber sido `ACEPTADO` previamente.
-  - **Regla 2**: Al pasar a `ACEPTADO`, invoca a `ms-rutaexpress-catalog` para descontar 1 cupo de la capacidad diaria de flota.
-  - **Regla 3**: Si un envío aceptado se cancela, se restituye la capacidad en catálogo.
-  - **Regla 4**: En cada cambio de estado, emite un evento de auditoría de forma asíncrona hacia `ms-rutaexpress-audit`.
+### 2.2 ms-rutaexpress-shipments
+- Rol: Nucleo transaccional de gestion de envios.
+- Puerto: 8081.
+- Dependencias: Spring Boot Web, Spring Data JPA, H2 / PostgreSQL.
+- Reglas de negocio:
+  - Ciclo de estados: `CREADO` -> `ACEPTADO` -> `EN_BODEGA` -> `EN_RUTA` -> `ENTREGADO` / `CANCELADO`.
+  - Prohibicion expresa de transicionar hacia `EN_RUTA` si el envio no fue marcado previamente como `ACEPTADO`.
+  - Coordinacion sincrona con el catalogo para restar 1 cupo de flota al aceptar el envio y reponerlo al cancelar.
+  - Publicacion desacoplada de eventos hacia auditoria mediante llamadas HTTP asincronas (`@Async`).
 
-### 2.3 ms-rutaexpress-catalog (Puerto 8082)
-- **Tecnología**: Spring Boot 3.2.4, Spring Data JPA, H2 / PostgreSQL.
-- **Responsabilidad**:
-  - Catálogo de tipos de envío (Express Mismo Día, Estándar Día Siguiente, Económico).
-  - Control de tarifas base y variables por km.
-  - Gestión transaccional de capacidad de flota diaria disponible.
-  - Endpoints atómicos: `POST /api/catalog/services/{id}/reserve-capacity` y `release-capacity`.
+### 2.3 ms-rutaexpress-catalog
+- Rol: Mantenimiento de tipos de despacho, matrices de calculo y disponibilidad operativa.
+- Puerto: 8082.
+- Dependencias: Spring Boot Web, Spring Data JPA, H2 / PostgreSQL.
+- Reglas de negocio:
+  - Validacion de limites maximos diarios de flota.
+  - Rechazo con error HTTP 409 Conflict ante solicitudes de reserva cuando la capacidad disponible es cero.
 
-### 2.4 ms-rutaexpress-audit (Puerto 8083)
-- **Tecnología**: Spring Boot 3.2.4, Spring Data JPA, H2 / PostgreSQL.
-- **Responsabilidad**:
-  - Almacén de eventos inmutables de trazabilidad.
-  - Guarda: `eventId`, `shipmentId`, `trackingNumber`, `eventType`, `previousStatus`, `newStatus`, `performedBy`, `userRole`, `ipAddress`, `timestamp`, `details`.
-  - Consultas rápidas indexadas por envío (`/api/audit/shipments/{id}`) y filtros multicriterio (`/api/audit?user=...&from=...&to=...`).
+### 2.4 ms-rutaexpress-audit
+- Rol: Repositorio inmutable de eventos de auditoria y trazabilidad.
+- Puerto: 8083.
+- Dependencias: Spring Boot Web, Spring Data JPA, H2 / PostgreSQL.
+- Reglas de negocio:
+  - Persistencia append-only indexada por identificador de envio y marca de tiempo.
+  - Exposicion de endpoints de lectura para fiscalizacion y seguimiento operacional.
 
 ---
 
-## 3. Matriz de Endpoints Esenciales
+## 3. Matriz de Endpoints
 
-| Microservicio | Método | Ruta | Descripción |
+| Servicio | Metodo | Ruta | Descripcion |
 |---|---|---|---|
-| **BFF** | `GET` | `/api/bff/shipments/{id}/full-trace` | Agregación completa (envío + catálogo + auditoría) |
-| **BFF** | `GET` | `/api/bff/health` | Healthcheck del ecosistema |
-| **Shipments** | `POST` | `/api/shipments` | Crear envío (estado `CREADO`) |
-| **Shipments** | `GET` | `/api/shipments/{id}` | Obtener envío por ID |
-| **Shipments** | `GET` | `/api/shipments/tracking/{code}` | Obtener envío por número de seguimiento |
-| **Shipments** | `PUT` | `/api/shipments/{id}/status` | Cambiar estado (valida reglas de negocio) |
-| **Shipments** | `GET` | `/api/shipments` | Listar envíos por estado y fechas |
-| **Catalog** | `GET` | `/api/catalog/services` | Listar servicios y capacidad disponible |
-| **Catalog** | `POST` | `/api/catalog/services` | Crear servicio |
-| **Catalog** | `PUT` | `/api/catalog/services/{id}` | Modificar tarifa/capacidad |
-| **Catalog** | `POST` | `/api/catalog/services/{id}/reserve-capacity` | Descontar capacidad de flota |
-| **Audit** | `POST` | `/api/audit/events` | Registrar evento de auditoría |
-| **Audit** | `GET` | `/api/audit/shipments/{id}` | Timeline cronológico de un envío |
-| **Audit** | `GET` | `/api/audit` | Búsqueda filtrada de eventos |
+| **BFF** | `GET` | `/api/bff/shipments/{id}/full-trace` | Consulta unificada de envio, catalogo y timeline |
+| **BFF** | `GET` | `/api/bff/health` | Estado de salud del sistema |
+| **Shipments** | `POST` | `/api/shipments` | Alta de envio en estado CREADO |
+| **Shipments** | `GET` | `/api/shipments/{id}` | Consulta de envio por identificador |
+| **Shipments** | `GET` | `/api/shipments/tracking/{code}` | Consulta por codigo de tracking |
+| **Shipments** | `PUT` | `/api/shipments/{id}/status` | Actualizacion de estado con validacion de reglas |
+| **Shipments** | `GET` | `/api/shipments` | Filtro de envios por estado y rango de fechas |
+| **Catalog** | `GET` | `/api/catalog/services` | Listado de servicios y cupos de flota |
+| **Catalog** | `POST` | `/api/catalog/services` | Alta de nuevo servicio |
+| **Catalog** | `PUT` | `/api/catalog/services/{id}` | Actualizacion de tarifas y limites |
+| **Catalog** | `POST` | `/api/catalog/services/{id}/reserve-capacity` | Reduccion de cupo de capacidad |
+| **Catalog** | `POST` | `/api/catalog/services/{id}/release-capacity` | Restitucion de cupo de capacidad |
+| **Audit** | `POST` | `/api/audit/events` | Registro de evento en historial |
+| **Audit** | `GET` | `/api/audit/shipments/{id}` | Historial cronologico de un envio |
+| **Audit** | `GET` | `/api/audit` | Busqueda filtrada de eventos |
