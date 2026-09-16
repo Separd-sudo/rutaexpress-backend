@@ -79,7 +79,7 @@ Microservicio de soporte transversal responsable del registro inmutable de audit
 | Variable | Valor por Defecto | Descripcion |
 |---|---|---|
 | `SERVER_PORT` | `8083` | Puerto HTTP del servicio |
-| `SPRING_DATASOURCE_URL` | `jdbc:h2:mem:auditdb` | Cadena de conexion a la base de datos |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/rutaexpress_audit` | Cadena de conexion a la base de datos |
 | `SPRING_DATASOURCE_USERNAME` | `sa` | Usuario de base de datos |
 | `SPRING_DATASOURCE_PASSWORD` | *(vacio)* | Clave de base de datos |
 

@@ -72,7 +72,7 @@ Si la capacidad disponible es menor al cupo solicitado, retorna HTTP 409 Conflic
 | Variable | Valor por Defecto | Descripcion |
 |---|---|---|
 | `SERVER_PORT` | `8082` | Puerto de escucha del microservicio |
-| `SPRING_DATASOURCE_URL` | `jdbc:h2:mem:catalogdb` | URL de la base de datos (H2 en memoria o PostgreSQL) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/rutaexpress_catalog` | URL de la base de datos (PostgreSQL (o H2 en perfil de prueba)) |
 | `SPRING_DATASOURCE_USERNAME` | `sa` | Usuario de base de datos |
 | `SPRING_DATASOURCE_PASSWORD` | *(vacio)* | Credencial de acceso a base de datos |
 

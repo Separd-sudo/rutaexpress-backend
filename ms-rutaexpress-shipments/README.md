@@ -1,6 +1,6 @@
 # ms-rutaexpress-shipments
 
-Microservicio de dominio responsable del ciclo de vida integral de los envios logísticos en la plataforma RutaExpress. Desarrollado con Spring Boot 3.2.4 y Spring Data JPA.
+Microservicio de dominio responsable del ciclo de vida integral de los envios logÃ­sticos en la plataforma RutaExpress. Desarrollado con Spring Boot 3.2.4 y Spring Data JPA.
 
 ---
 
@@ -84,7 +84,7 @@ El flujo de estados permitido se define segun el siguiente orden operacional:
 | `SERVER_PORT` | `8081` | Puerto HTTP del servicio |
 | `CATALOG_SERVICE_URL` | `http://localhost:8082` | URL del servicio de catalogo |
 | `AUDIT_SERVICE_URL` | `http://localhost:8083` | URL del servicio de auditoria |
-| `SPRING_DATASOURCE_URL` | `jdbc:h2:mem:shipmentsdb` | Cadena de conexion a base de datos |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/rutaexpress_shipments` | Cadena de conexion a base de datos |
 
 ---
 
