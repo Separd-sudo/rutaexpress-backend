@@ -6,14 +6,15 @@ Plataforma backend distribuida para la coordinacion logistica y gestion de envio
 
 ## 1. Modulos del Sistema
 
-El ecosistema se divide en 4 componentes de software independientes:
+El ecosistema se divide en 5 componentes de software independientes (Frontend React + 4 servicios Backend):
 
 | Microservicio | Puerto | Dominio | Descripcion Funcional |
 |---|---|---|---|
+| `frontend-rutaexpress` | 5173 | Frontend SPA | Aplicacion React 18 con MSAL, inicio de sesion con Azure AD / Microsoft Entra ID y panel de operaciones por rol conectado al BFF. |
 | `ms-rutaexpress-bff` | 8080 | Gateway / BFF | Punto de entrada unico para clientes web (React), orquestador y agregador de APIs, validador de tokens JWT de Azure AD y control de autorizacion por roles. |
-| `ms-rutaexpress-shipments` | 8081 | Envíos | Control del ciclo de vida de los envios, maquina de estados, calculo de costos, validacion de transiciones y coordinacion con catalogo y auditoria. |
-| `ms-rutaexpress-catalog` | 8082 | Catálogo y Flota | Administracion de tipos de servicio, estructuras tarifarias y gestion transaccional de la capacidad operativa diaria de flota. |
-| `ms-rutaexpress-audit` | 8083 | Auditoría | Repositorio inmutable de eventos de trazabilidad para auditar quien, cuando y desde que rol se opero cada envio. |
+| `ms-rutaexpress-shipments` | 8081 | EnvÃ­os | Control del ciclo de vida de los envios, maquina de estados, calculo de costos, validacion de transiciones y coordinacion con catalogo y auditoria. |
+| `ms-rutaexpress-catalog` | 8082 | CatÃ¡logo y Flota | Administracion de tipos de servicio, estructuras tarifarias y gestion transaccional de la capacidad operativa diaria de flota. |
+| `ms-rutaexpress-audit` | 8083 | AuditorÃ­a | Repositorio inmutable de eventos de trazabilidad para auditar quien, cuando y desde que rol se opero cada envio. |
 
 > Nota arquitectonica: La comunicacion entre el nucleo de envios, el catalogo y la auditoria se realiza mediante llamadas REST directas desacopladas de forma asincrona (`@Async` y `RestClient`), evitando la sobrecarga operativa de intermediarios como Apache Kafka o RabbitMQ en este entorno.
 
@@ -32,16 +33,16 @@ El ecosistema se divide en 4 componentes de software independientes:
 
 ```text
 .
-├── pom.xml                           # POM padre multi-modulo
-├── docker-compose.yml                # Despliegue de red y contenedores
-├── test-e2e.ps1                      # Suite de pruebas de integracion extremo a extremo
-├── docs/
-│   ├── ARCHITECTURE.md               # Especificacion tecnica y contratos de interfaz
-│   └── AZURE_AWS_INTEGRATION.md      # Guia de enlace Azure AD + AWS API Gateway + EC2
-├── ms-rutaexpress-bff/               # Backend For Frontend
-├── ms-rutaexpress-shipments/         # Gestion de envios
-├── ms-rutaexpress-catalog/           # Catalogo y capacidad de flota
-└── ms-rutaexpress-audit/             # Auditoria y trazabilidad
+â”œâ”€â”€ pom.xml                           # POM padre multi-modulo
+â”œâ”€â”€ docker-compose.yml                # Despliegue de red y contenedores
+â”œâ”€â”€ test-e2e.ps1                      # Suite de pruebas de integracion extremo a extremo
+â”œâ”€â”€ docs/
+â”‚   â”œâ”€â”€ ARCHITECTURE.md               # Especificacion tecnica y contratos de interfaz
+â”‚   â””â”€â”€ AZURE_AWS_INTEGRATION.md      # Guia de enlace Azure AD + AWS API Gateway + EC2
+â”œâ”€â”€ ms-rutaexpress-bff/               # Backend For Frontend
+â”œâ”€â”€ ms-rutaexpress-shipments/         # Gestion de envios
+â”œâ”€â”€ ms-rutaexpress-catalog/           # Catalogo y capacidad de flota
+â””â”€â”€ ms-rutaexpress-audit/             # Auditoria y trazabilidad
 ```
 
 ---
