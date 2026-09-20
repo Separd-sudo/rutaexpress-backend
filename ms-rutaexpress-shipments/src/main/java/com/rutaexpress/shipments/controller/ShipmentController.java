@@ -20,44 +20,44 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/shipments")
 @RequiredArgsConstructor
-@Tag(name = "Gestión de Envíos", description = "Endpoints para la creación, seguimiento y cambio de estado del ciclo logístico de envíos")
+@Tag(name = "Gestion de Envios", description = "Endpoints para la creacion, seguimiento y cambio de estado del ciclo logistico de envios")
 public class ShipmentController {
 
     private final ShipmentService shipmentService;
 
     @PostMapping
-    @Operation(summary = "Crear nuevo envío", description = "Registra un envío en estado inicial CREADO, calcula tarifa y notifica auditoría")
+    @Operation(summary = "Crear nuevo envio", description = "Registra un envio en estado inicial CREADO, calcula tarifa y notifica auditoria")
     public ResponseEntity<ShipmentResponse> createShipment(@Valid @RequestBody CreateShipmentRequest request) {
         ShipmentResponse response = shipmentService.createShipment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener detalle de envío por ID")
-    public ResponseEntity<ShipmentResponse> getShipmentById(@PathVariable Long id) {
+    @Operation(summary = "Obtener detalle de envio por ID")
+    public ResponseEntity<ShipmentResponse> getShipmentById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(shipmentService.getShipmentById(id));
     }
 
     @GetMapping("/tracking/{trackingNumber}")
-    @Operation(summary = "Consultar envío por número de seguimiento")
-    public ResponseEntity<ShipmentResponse> getShipmentByTracking(@PathVariable String trackingNumber) {
+    @Operation(summary = "Consultar envio por numero de seguimiento")
+    public ResponseEntity<ShipmentResponse> getShipmentByTracking(@PathVariable("trackingNumber") String trackingNumber) {
         return ResponseEntity.ok(shipmentService.getShipmentByTracking(trackingNumber));
     }
 
     @PutMapping("/{id}/status")
-    @Operation(summary = "Actualizar estado del envío", description = "Permite transiciones controladas. Regla: no se puede pasar a EN_RUTA sin antes pasar por ACEPTADO.")
+    @Operation(summary = "Actualizar estado del envio", description = "Permite transiciones controladas. Regla: no se puede pasar a EN_RUTA sin antes pasar por ACEPTADO.")
     public ResponseEntity<ShipmentResponse> updateStatus(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @Valid @RequestBody UpdateStatusRequest request) {
         return ResponseEntity.ok(shipmentService.updateStatus(id, request));
     }
 
     @GetMapping
-    @Operation(summary = "Filtrar y listar envíos", description = "Búsqueda por estado y rango de fechas de creación")
+    @Operation(summary = "Filtrar y listar envios", description = "Busqueda por estado y rango de fechas de creacion")
     public ResponseEntity<List<ShipmentResponse>> getShipments(
-            @RequestParam(required = false) ShipmentStatus status,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @RequestParam(name = "status", required = false) ShipmentStatus status,
+            @RequestParam(name = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(name = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         return ResponseEntity.ok(shipmentService.getShipments(status, from, to));
     }
 }

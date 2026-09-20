@@ -16,7 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bff/shipments")
-@Tag(name = "BFF - Envíos", description = "Acceso unificado y agregación para la gestión de envíos desde React")
+@Tag(name = "BFF - Envios", description = "Acceso unificado y agregacion para la gestion de envios desde React")
 @Slf4j
 public class BffShipmentController {
 
@@ -32,7 +32,7 @@ public class BffShipmentController {
     }
 
     @PostMapping
-    @Operation(summary = "Crear nuevo envío (BFF)", description = "Redirige la creación del envío al microservicio de shipments")
+    @Operation(summary = "Crear nuevo envio (BFF)", description = "Redirige la creacion del envio al microservicio de shipments")
     public ResponseEntity<Map<String, Object>> createShipment(@RequestBody Map<String, Object> body) {
         return shipmentsClient.post()
                 .uri("/api/shipments")
@@ -43,8 +43,8 @@ public class BffShipmentController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener envío por ID (BFF)")
-    public ResponseEntity<Map<String, Object>> getShipmentById(@PathVariable Long id) {
+    @Operation(summary = "Obtener envio por ID (BFF)")
+    public ResponseEntity<Map<String, Object>> getShipmentById(@PathVariable("id") Long id) {
         return shipmentsClient.get()
                 .uri("/api/shipments/{id}", id)
                 .accept(MediaType.APPLICATION_JSON)
@@ -53,8 +53,8 @@ public class BffShipmentController {
     }
 
     @GetMapping("/tracking/{trackingNumber}")
-    @Operation(summary = "Consultar envío por tracking (BFF)")
-    public ResponseEntity<Map<String, Object>> getShipmentByTracking(@PathVariable String trackingNumber) {
+    @Operation(summary = "Consultar envio por tracking (BFF)")
+    public ResponseEntity<Map<String, Object>> getShipmentByTracking(@PathVariable("trackingNumber") String trackingNumber) {
         return shipmentsClient.get()
                 .uri("/api/shipments/tracking/{trackingNumber}", trackingNumber)
                 .accept(MediaType.APPLICATION_JSON)
@@ -63,9 +63,9 @@ public class BffShipmentController {
     }
 
     @PutMapping("/{id}/status")
-    @Operation(summary = "Actualizar estado de envío (BFF)")
+    @Operation(summary = "Actualizar estado de envio (BFF)")
     public ResponseEntity<Map<String, Object>> updateStatus(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody Map<String, Object> body) {
         return shipmentsClient.put()
                 .uri("/api/shipments/{id}/status", id)
@@ -76,11 +76,11 @@ public class BffShipmentController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar envíos filtrados (BFF)")
+    @Operation(summary = "Listar envios filtrados (BFF)")
     public ResponseEntity<List<Map<String, Object>>> getShipments(
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "from", required = false) String from,
+            @RequestParam(name = "to", required = false) String to) {
         return shipmentsClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/shipments")
@@ -94,9 +94,9 @@ public class BffShipmentController {
     }
 
     @GetMapping("/{id}/full-trace")
-    @Operation(summary = "Agregación completa del envío: datos + catálogo + timeline",
+    @Operation(summary = "Agregacion completa del envio: datos + catalogo + timeline",
                description = "Endpoint optimizado para React que unifica los 3 microservicios en una sola respuesta")
-    public ResponseEntity<FullShipmentTraceResponse> getFullTrace(@PathVariable Long id) {
+    public ResponseEntity<FullShipmentTraceResponse> getFullTrace(@PathVariable("id") Long id) {
         return ResponseEntity.ok(aggregationService.getFullTrace(id));
     }
 }

@@ -31,3 +31,7 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+frontend-rutaexpress/node_modules/
+frontend-rutaexpress/dist/
+

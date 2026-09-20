@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bff/catalog")
-@Tag(name = "BFF - Catálogo", description = "Gestión de catálogo de servicios y capacidades para el frontend")
+@Tag(name = "BFF - Catalogo", description = "Gestion de catalogo de servicios y capacidades para el frontend")
 public class BffCatalogController {
 
     private final RestClient catalogClient;
@@ -26,8 +26,9 @@ public class BffCatalogController {
     }
 
     @GetMapping("/services")
-    @Operation(summary = "Listar catálogo de servicios (BFF)")
-    public ResponseEntity<List<Map<String, Object>>> listServices(@RequestParam(required = false) Boolean activeOnly) {
+    @Operation(summary = "Listar catalogo de servicios (BFF)")
+    public ResponseEntity<List<Map<String, Object>>> listServices(
+            @RequestParam(name = "activeOnly", required = false) Boolean activeOnly) {
         return catalogClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/catalog/services")
@@ -40,7 +41,7 @@ public class BffCatalogController {
 
     @GetMapping("/services/{id}")
     @Operation(summary = "Obtener servicio por ID (BFF)")
-    public ResponseEntity<Map<String, Object>> getServiceById(@PathVariable Long id) {
+    public ResponseEntity<Map<String, Object>> getServiceById(@PathVariable("id") Long id) {
         return catalogClient.get()
                 .uri("/api/catalog/services/{id}", id)
                 .accept(MediaType.APPLICATION_JSON)
@@ -49,7 +50,7 @@ public class BffCatalogController {
     }
 
     @PostMapping("/services")
-    @Operation(summary = "Crear nuevo servicio de catálogo (Admin)")
+    @Operation(summary = "Crear nuevo servicio de catalogo (Admin)")
     public ResponseEntity<Map<String, Object>> createService(@RequestBody Map<String, Object> body) {
         return catalogClient.post()
                 .uri("/api/catalog/services")
@@ -62,7 +63,7 @@ public class BffCatalogController {
     @PutMapping("/services/{id}")
     @Operation(summary = "Modificar tarifa o capacidad (Admin)")
     public ResponseEntity<Map<String, Object>> updateService(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @RequestBody Map<String, Object> body) {
         return catalogClient.put()
                 .uri("/api/catalog/services/{id}", id)

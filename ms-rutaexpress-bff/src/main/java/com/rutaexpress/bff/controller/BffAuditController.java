@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/bff/audit")
-@Tag(name = "BFF - Auditoría", description = "Consulta de eventos y trazabilidad para el frontend")
+@Tag(name = "BFF - Auditoria", description = "Consulta de eventos y trazabilidad para el frontend")
 public class BffAuditController {
 
     private final RestClient auditClient;
@@ -26,8 +26,8 @@ public class BffAuditController {
     }
 
     @GetMapping("/shipments/{shipmentId}")
-    @Operation(summary = "Obtener timeline de un envío (BFF)")
-    public ResponseEntity<List<Map<String, Object>>> getShipmentTimeline(@PathVariable Long shipmentId) {
+    @Operation(summary = "Obtener timeline de un envio (BFF)")
+    public ResponseEntity<List<Map<String, Object>>> getShipmentTimeline(@PathVariable("shipmentId") Long shipmentId) {
         return auditClient.get()
                 .uri("/api/audit/shipments/{id}", shipmentId)
                 .accept(MediaType.APPLICATION_JSON)
@@ -36,12 +36,12 @@ public class BffAuditController {
     }
 
     @GetMapping
-    @Operation(summary = "Consultar eventos de auditoría con filtros (BFF)")
+    @Operation(summary = "Consultar eventos de auditoria con filtros (BFF)")
     public ResponseEntity<List<Map<String, Object>>> searchEvents(
-            @RequestParam(required = false) String user,
-            @RequestParam(required = false) String eventType,
-            @RequestParam(required = false) String from,
-            @RequestParam(required = false) String to) {
+            @RequestParam(name = "user", required = false) String user,
+            @RequestParam(name = "eventType", required = false) String eventType,
+            @RequestParam(name = "from", required = false) String from,
+            @RequestParam(name = "to", required = false) String to) {
         return auditClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/audit")
