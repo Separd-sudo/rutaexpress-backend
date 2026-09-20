@@ -1,93 +1,75 @@
-# ms-rutaexpress-audit
+# Microservicio de Auditoria - ms-rutaexpress-audit
 
-Microservicio de soporte transversal responsable del registro inmutable de auditoria y trazabilidad cronologica de todas las operaciones logisticas ejecutadas en RutaExpress. Desarrollado con Spring Boot 3.2.4 y Spring Data JPA.
-
----
-
-## 1. Responsabilidades del Dominio
-
-- Ingesta de eventos operativos generados por el ciclo de vida de los envios y reservas de capacidad de flota.
-- Generacion de identificadores unicos de evento con prefijo `EVT-UUID`.
-- Garantia de inmutabilidad de los registros: los eventos almacenados no admiten modificacion ni eliminacion (operaciones append-only).
-- Exposicion de endpoints de solo lectura para el rol de `Auditor` y `Admin`, permitiendo reconstruir la linea de tiempo cronologica de cualquier envio o auditar la actividad de usuarios especificos.
+Microservicio transversal responsable del almacenamiento inmutable y consulta de la trazabilidad historica de todos los eventos operativos ocurridos en la plataforma RutaExpress.
 
 ---
 
-## 2. Endpoints del Servicio
+## 1. Funcion del Microservicio
 
-| Metodo | Ruta | Descripcion | Codigo Exito |
+En operaciones logisticas es critico saber con exactitud quien, cuando y que cambio se realizo sobre un envio. Este microservicio cumple esa labor:
+- Ingesta eventos generados por los demas servicios (creacion de envio, cambios de estado, reservas de flota).
+- Genera identificadores unicos de evento con prefijo `EVT-UUID`.
+- Garantiza la inmutabilidad: las operaciones son exclusivamente de adicion (append-only); ningun evento puede ser editado ni borrado de la base de datos.
+- Ofrece consultas cronologicas para reconstruir la historia completa de un paquete desde su recepcion hasta su entrega.
+
+---
+
+## 2. Base de Datos y Persistencia
+
+- Motor: PostgreSQL 15 o superior.
+- Base de datos asignada: `rutaexpress_audit`.
+- Tablas gestionadas: `audit_events` (registra ID de envio, codigo de seguimiento, tipo de evento, estado anterior, estado nuevo, usuario responsable, rol del operador, direccion IP y marca temporal).
+
+---
+
+## 3. Endpoints Disponibles
+
+Puerto de ejecucion por defecto: `8083`
+
+| Metodo HTTP | Ruta | Descripcion | Parametros / Body |
 |---|---|---|---|
-| `POST` | `/api/audit/events` | Registra un nuevo evento de auditoria en el repositorio inmutable | 201 Created |
-| `GET` | `/api/audit/shipments/{shipmentId}` | Retorna el timeline cronologico completo de un envio ordenado ascendentemente por fecha | 200 OK |
-| `GET` | `/api/audit` | Consulta de eventos con filtros: `user` (operador), `eventType`, `from` y `to` (rango temporal) | 200 OK |
+| POST | `/api/audit/events` | Registra un nuevo evento inmutable en el historico | JSON con datos de la accion realizada |
+| GET | `/api/audit/shipments/{shipmentId}` | Obtiene la linea de tiempo cronologica de un envio | ID del envio en la ruta |
+| GET | `/api/audit` | Busca eventos segun filtros de auditoria | `?user=...&eventType=...&from=...&to=...` |
+| GET | `/actuator/health` | Estado de salud y conexion a la base de datos | Ninguno |
+| GET | `/swagger-ui.html` | Interfaz interactiva de documentacion Swagger | Ninguno |
 
 ---
 
-## 3. Estructura del Evento de Auditoria
+## 4. Variables de Configuracion
 
-### Registro de Evento (`POST /api/audit/events`)
-```json
-{
-  "shipmentId": 1,
-  "trackingNumber": "RTX-20260916-4321",
-  "eventType": "STATUS_CHANGED_EN_RUTA",
-  "previousStatus": "EN_BODEGA",
-  "newStatus": "EN_RUTA",
-  "performedBy": "operador.ruta1@rutaexpress.cl",
-  "userRole": "Despachador",
-  "ipAddress": "192.168.1.50",
-  "details": "Envio cargado en furgon patente AB-CD-12 para entrega en zona centro"
-}
-```
-
-### Respuesta del Timeline (`GET /api/audit/shipments/1`)
-```json
-[
-  {
-    "id": 1,
-    "eventId": "EVT-8a7f1234-5678-4321-abcd-ef0123456789",
-    "shipmentId": 1,
-    "trackingNumber": "RTX-20260916-4321",
-    "eventType": "SHIPMENT_CREATED",
-    "previousStatus": null,
-    "newStatus": "CREADO",
-    "performedBy": "cliente@correo.cl",
-    "userRole": "Cliente",
-    "details": "Envio creado en el sistema con servicio SAME_DAY",
-    "timestamp": "2026-09-16T14:30:15"
-  },
-  {
-    "id": 2,
-    "eventId": "EVT-9b8e2345-6789-5432-bcde-fa1234567890",
-    "shipmentId": 1,
-    "trackingNumber": "RTX-20260916-4321",
-    "eventType": "STATUS_CHANGED_ACEPTADO",
-    "previousStatus": "CREADO",
-    "newStatus": "ACEPTADO",
-    "performedBy": "despachador1@rutaexpress.cl",
-    "userRole": "Despachador",
-    "details": "Envio aceptado y capacidad de flota reservada",
-    "timestamp": "2026-09-16T14:45:00"
-  }
-]
-```
-
----
-
-## 4. Variables de Entorno
-
-| Variable | Valor por Defecto | Descripcion |
+| Variable de Entorno | Valor por Defecto | Descripcion |
 |---|---|---|
-| `SERVER_PORT` | `8083` | Puerto HTTP del servicio |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/rutaexpress_audit` | Cadena de conexion a la base de datos |
-| `SPRING_DATASOURCE_USERNAME` | `sa` | Usuario de base de datos |
-| `SPRING_DATASOURCE_PASSWORD` | *(vacio)* | Clave de base de datos |
+| `SERVER_PORT` | `8083` | Puerto TCP donde escucha el servicio |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/rutaexpress_audit` | URL JDBC de conexion a PostgreSQL |
+| `SPRING_DATASOURCE_USERNAME` | `postgres` | Usuario de base de datos |
+| `SPRING_DATASOURCE_PASSWORD` | `postgres` | Contrasena de base de datos |
 
 ---
 
-## 5. Compilacion y Ejecucion
+## 5. Como Levantar este Microservicio
 
+### Requisitos previos:
+- Java JDK 17 instalado.
+- Servidor PostgreSQL activo con la base de datos `rutaexpress_audit` creada.
+
+### Opcion A: Ejecutar con Maven (Modo Desarrollo)
 ```bash
-mvn -f ms-rutaexpress-audit/pom.xml clean package -DskipTests
+mvn -pl ms-rutaexpress-audit spring-boot:run
+```
+
+### Opcion B: Compilar el JAR y Ejecutar
+1. Compilar:
+```bash
+mvn clean package -pl ms-rutaexpress-audit -DskipTests
+```
+2. Ejecutar:
+```bash
 java -jar ms-rutaexpress-audit/target/ms-rutaexpress-audit-1.0.0.jar
+```
+
+### Opcion C: Ejecutar con Docker
+```bash
+docker build -t ms-rutaexpress-audit:1.0.0 ./ms-rutaexpress-audit
+docker run -d -p 8083:8083 --name audit-svc ms-rutaexpress-audit:1.0.0
 ```

@@ -1,133 +1,148 @@
-# RutaExpress - Plataforma Backend Cloud-Native
+# RutaExpress - Plataforma Logistica Cloud-Native
 
-Plataforma backend distribuida para la coordinacion logistica y gestion de envios de ultima milla en redes de operadores courier. La solucion esta desarrollada sobre Java 17 y Spring Boot 3.2.4 bajo un patron de microservicios con un Backend-For-Frontend (BFF), disenada para operar detras de AWS API Gateway y autenticacion corporativa basada en Azure Active Directory (Microsoft Entra ID).
+Plataforma distribuida para la coordinacion logistica y gestion de envios de ultima milla en redes de operadores courier. El sistema esta compuesto por un frontend en React 18 y un backend desacoplado en 4 microservicios con Java 17 y Spring Boot 3.2.4 bajo el patron Backend-For-Frontend (BFF), con persistencia en PostgreSQL y compatibilidad de identidad corporativa en Microsoft Entra ID (Azure AD) y AWS.
 
 ---
 
 ## 1. Modulos del Sistema
 
-El ecosistema se divide en 5 componentes de software independientes (Frontend React + 4 servicios Backend):
+El ecosistema se compone de 5 componentes de software independientes:
 
-| Microservicio | Puerto | Dominio | Descripcion Funcional |
+| Componente | Puerto | Tecnologia | Descripcion Funcional |
 |---|---|---|---|
-| `frontend-rutaexpress` | 5173 | Frontend SPA | Aplicacion React 18 con MSAL, inicio de sesion con Azure AD / Microsoft Entra ID y panel de operaciones por rol conectado al BFF. |
-| `ms-rutaexpress-bff` | 8080 | Gateway / BFF | Punto de entrada unico para clientes web (React), orquestador y agregador de APIs, validador de tokens JWT de Azure AD y control de autorizacion por roles. |
-| `ms-rutaexpress-shipments` | 8081 | EnvÃ­os | Control del ciclo de vida de los envios, maquina de estados, calculo de costos, validacion de transiciones y coordinacion con catalogo y auditoria. |
-| `ms-rutaexpress-catalog` | 8082 | CatÃ¡logo y Flota | Administracion de tipos de servicio, estructuras tarifarias y gestion transaccional de la capacidad operativa diaria de flota. |
-| `ms-rutaexpress-audit` | 8083 | AuditorÃ­a | Repositorio inmutable de eventos de trazabilidad para auditar quien, cuando y desde que rol se opero cada envio. |
-
-> Nota arquitectonica: La comunicacion entre el nucleo de envios, el catalogo y la auditoria se realiza mediante llamadas REST directas desacopladas de forma asincrona (`@Async` y `RestClient`), evitando la sobrecarga operativa de intermediarios como Apache Kafka o RabbitMQ en este entorno.
+| `frontend-rutaexpress` | 5173 | React 18 + Vite | Interfaz web de usuario con soporte de inicio de sesion corporativo y perfiles por rol (Admin, Despachador, Cliente, Auditor). |
+| `ms-rutaexpress-bff` | 8080 | Spring Boot 3.2.4 | Puerta de entrada unica y agregador de APIs. Valida tokens JWT y enruta peticiones hacia los microservicios internos. |
+| `ms-rutaexpress-shipments` | 8081 | Spring Boot 3.2.4 | Nucleo del negocio logistico. Controla el ciclo de vida de los envios, maquina de estados y reglas de despacho. |
+| `ms-rutaexpress-catalog` | 8082 | Spring Boot 3.2.4 | Administracion de tarifas y control transaccional de cupos de vehiculos de la flota diaria. |
+| `ms-rutaexpress-audit` | 8083 | Spring Boot 3.2.4 | Repositorio inmutable para almacenar la trazabilidad historica de quien, cuando y que cambio se hizo en cada envio. |
 
 ---
 
-## 2. Requisitos del Entorno
+## 2. Requisitos Previos
 
-- Java Development Kit (JDK) 17 LTS (Eclipse Adoptium Temurin recomendado)
-- Apache Maven 3.9+
-- Docker Engine 24+ y Docker Compose v2+
-- Git 2.40+
+Para ejecutar la solucion completa en un entorno local se requiere:
+- Java JDK 17 o superior.
+- Node.js 18 o superior y gestor de paquetes npm.
+- PostgreSQL 15 o superior (o Docker Engine para ejecutar el stack en contenedores).
+- Apache Maven 3.9 o superior.
 
 ---
 
-## 3. Estructura del Repositorio
+## 3. Como Levantar el Sistema por Completo
 
-```text
-.
-â”œâ”€â”€ pom.xml                           # POM padre multi-modulo
-â”œâ”€â”€ docker-compose.yml                # Despliegue de red y contenedores
-â”œâ”€â”€ test-e2e.ps1                      # Suite de pruebas de integracion extremo a extremo
-â”œâ”€â”€ docs/
-â”‚   â”œâ”€â”€ ARCHITECTURE.md               # Especificacion tecnica y contratos de interfaz
-â”‚   â””â”€â”€ AZURE_AWS_INTEGRATION.md      # Guia de enlace Azure AD + AWS API Gateway + EC2
-â”œâ”€â”€ ms-rutaexpress-bff/               # Backend For Frontend
-â”œâ”€â”€ ms-rutaexpress-shipments/         # Gestion de envios
-â”œâ”€â”€ ms-rutaexpress-catalog/           # Catalogo y capacidad de flota
-â””â”€â”€ ms-rutaexpress-audit/             # Auditoria y trazabilidad
+Existen dos metodos para ejecutar todo el sistema:
+
+### Metodo 1: Ejecucion con Docker Compose (Recomendado para evaluacion completa)
+
+Este metodo arranca automaticamente la base de datos PostgreSQL, inicializa los esquemas y levanta los 4 microservicios en una red privada aislada.
+
+1. En la raiz del proyecto, ejecutar:
+```bash
+docker compose up -d --build
 ```
 
+2. Comprobar que los contenedores esten en estado saludable:
+```bash
+docker compose ps
+```
+
+3. Levantar el frontend web en una terminal separada:
+```bash
+cd frontend-rutaexpress
+npm install
+npm run dev
+```
+
+4. Abrir en el navegador web:
+`http://localhost:5173`
+
 ---
 
-## 4. Compilacion y Empaquetado
+### Metodo 2: Ejecucion Nativa en Local (Paso a Paso)
 
-Para compilar todos los microservicios desde la raiz del repositorio:
+Si deseas ejecutar los servicios directamente en tu maquina sin Docker:
 
+#### Paso 2.1: Base de datos PostgreSQL
+Asegurarse de tener el servicio de PostgreSQL activo en el puerto 5432 y crear las tres bases de datos requeridas:
+```sql
+CREATE DATABASE rutaexpress_catalog;
+CREATE DATABASE rutaexpress_shipments;
+CREATE DATABASE rutaexpress_audit;
+```
+
+#### Paso 2.2: Compilar el Backend
+En la raiz del proyecto:
 ```bash
 mvn clean package -DskipTests
 ```
 
-Para ejecutar las pruebas unitarias y de reglas de negocio:
+#### Paso 2.3: Iniciar los Microservicios en Orden
+Abrir terminales independientes para cada servicio:
 
+1. **Terminal 1 - Catalogo (Puerto 8082)**:
 ```bash
-mvn test
+java -jar ms-rutaexpress-catalog/target/ms-rutaexpress-catalog-1.0.0.jar
 ```
+*Esperar el mensaje Started CatalogServiceApplication.*
 
----
-
-## 5. Ejecucion con Docker Compose
-
-El archivo `docker-compose.yml` aprovisiona los 4 servicios en una red bridge aislada (`rutaexpress-net`) con comprobaciones de estado de salud (healthchecks) integradas:
-
+2. **Terminal 2 - Auditoria (Puerto 8083)**:
 ```bash
-# Construir imagenes y levantar los contenedores en segundo plano
-docker compose up -d --build
-
-# Comprobar el estado operativo de los contenedores
-docker compose ps
-
-# Monitorear logs consolidados
-docker compose logs -f
+java -jar ms-rutaexpress-audit/target/ms-rutaexpress-audit-1.0.0.jar
 ```
+*Esperar el mensaje Started AuditServiceApplication.*
 
-Puertos expuestos hacia el host:
-- BFF (Entrada unificada): `http://localhost:8080`
-- Shipments API: `http://localhost:8081`
-- Catalog API: `http://localhost:8082`
-- Audit API: `http://localhost:8083`
-
-Para detener el stack:
+3. **Terminal 3 - Envios (Puerto 8081)**:
 ```bash
-docker compose down
+java -jar ms-rutaexpress-shipments/target/ms-rutaexpress-shipments-1.0.0.jar
 ```
+*Esperar el mensaje Started ShipmentsServiceApplication.*
+
+4. **Terminal 4 - Backend For Frontend (Puerto 8080)**:
+```bash
+java -jar ms-rutaexpress-bff/target/ms-rutaexpress-bff-1.0.0.jar
+```
+*Esperar el mensaje Started BffApplication.*
+
+#### Paso 2.4: Iniciar el Frontend Web
+En una quinta terminal:
+```bash
+cd frontend-rutaexpress
+npm run dev
+```
+Acceder en el navegador a `http://localhost:5173`. En la pantalla de login, seleccionar cualquiera de los roles disponibles para interactuar de inmediato con el backend.
 
 ---
 
-## 6. Documentacion de APIs (OpenAPI / Swagger)
+## 4. Validacion y Pruebas de Funcionamiento
 
-Cada microservicio expone su documentacion interactiva en las siguientes rutas:
-
-- Swagger UI del BFF: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-- Swagger UI de Shipments: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
-- Swagger UI de Catalog: [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)
-- Swagger UI de Audit: [http://localhost:8083/swagger-ui.html](http://localhost:8083/swagger-ui.html)
-
----
-
-## 7. Modelo de Seguridad e Integracion Cloud
-
-El sistema soporta integracion con Azure Active Directory (Microsoft Entra ID) para la autenticacion corporativa y autorizacion basada en roles (RBAC):
-
-- `Admin`: Configuracion de servicios de catalogo, asignacion de capacidades y consulta global de operaciones.
-- `Despachador`: Recepcion de envios, autorizacion de ingreso a bodega, despacho en ruta y confirmacion de entrega.
-- `Cliente`: Registro de nuevas solicitudes de envio y seguimiento mediante numero de tracking.
-- `Auditor`: Inspeccion de eventos cronologicos y trazabilidad de cambios de estado (solo lectura).
-
-Para instrucciones detalladas de integracion con AWS API Gateway (HTTP API JWT Authorizer) y aprovisionamiento en AWS EC2, consulte el documento tecnico en [docs/AZURE_AWS_INTEGRATION.md](docs/AZURE_AWS_INTEGRATION.md).
-
----
-
-## 8. Verificacion Automatizada
-
-Se provee un script en PowerShell para verificar la salud y las reglas de negocio de extremo a extremo:
+Se incluye un script automatizado en PowerShell que valida 7 pruebas de integracion extremo a extremo sobre los microservicios activos:
 
 ```powershell
 .\test-e2e.ps1
 ```
 
-Este script valida:
-1. Conectividad con el BFF.
-2. Consulta del catalogo de tarifas y capacidades.
-3. Creacion de envio en estado `CREADO`.
-4. Rechazo de la transicion directa a `EN_RUTA` (cumplimiento estricto de la regla de no despacho sin aceptacion).
-5. Transicion a `ACEPTADO` con decremento verificado en el catalogo de capacidad de flota.
-6. Flujo completo hacia `EN_BODEGA`, `EN_RUTA` y `ENTREGADO`.
-7. Consulta del endpoint de agregacion `GET /api/bff/shipments/{id}/full-trace` comprobando la emision de eventos de auditoria.
+Este script verifica:
+1. Conectividad y respuesta del BFF.
+2. Consulta de tarifas y capacidades en el catalogo.
+3. Creacion de un nuevo envio.
+4. Cumplimiento de la regla de negocio: rechazo del paso directo a EN_RUTA sin autorizacion previa.
+5. Transicion a estado ACEPTADO y descuento de cupo en la flota.
+6. Flujo completo por bodega, ruta y entrega.
+7. Consulta agregada del endpoint de trazabilidad y generacion de eventos de auditoria.
+
+---
+
+## 5. Documentacion Interactiva de APIs
+
+Con los servicios activos, se puede acceder a la documentacion Swagger en:
+- BFF (Entrada principal): [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- Shipments: [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html)
+- Catalog: [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html)
+- Audit: [http://localhost:8083/swagger-ui.html](http://localhost:8083/swagger-ui.html)
+
+---
+
+## 6. Integracion con Nubes Azure y AWS
+
+Para conocer el procedimiento de despliegue en maquinas virtuales AWS EC2, la configuracion de JWT Authorizer en AWS API Gateway y la federacion de identidades con Microsoft Entra ID o AWS Cognito, consultar la guia detallada en:
+[docs/AZURE_AWS_INTEGRATION.md](docs/AZURE_AWS_INTEGRATION.md)
