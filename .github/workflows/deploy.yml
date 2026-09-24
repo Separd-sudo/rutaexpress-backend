@@ -127,7 +127,18 @@ jobs:
             git checkout $BRANCH
             git reset --hard origin/$BRANCH
             
-            # 4. Autenticar con GHCR y descargar imagenes
+            # 4. Asegurar Docker Compose instalado
+            if ! \$DOCKER compose version > /dev/null 2>&1; then
+              echo "=== INSTALANDO DOCKER COMPOSE ==="
+              sudo dnf install -y docker-compose-plugin || {
+                sudo mkdir -p /usr/libexec/docker/cli-plugins /usr/local/bin
+                sudo curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/libexec/docker/cli-plugins/docker-compose
+                sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+                sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+              }
+            fi
+
+            # 5. Autenticar con GHCR y descargar imagenes
             echo "=== AUTENTICANDO CON GHCR EN EC2 ==="
             echo "$GH_TOKEN" | \$DOCKER login ghcr.io -u $GH_ACTOR --password-stdin
             
