@@ -46,22 +46,29 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
+          command_timeout: 15m
           script: |
-            echo "Conectado exitosamente a EC2: ${{ vars.TARGET_HOST_IP }}"
-            # Actualizar o clonar el repositorio
+            set -e
+            echo "=== [PASO 1/4] CONEXION SSH ESTABLECIDA CON EC2 ==="
+            cd /home/ec2-user
+            
+            echo "=== [PASO 2/4] ACTUALIZANDO CODIGO DESDE GITHUB ==="
             if [ -d "rutaexpress-backend" ]; then
               cd rutaexpress-backend
               git fetch origin
               git checkout develop
-              git pull origin develop
+              git reset --hard origin/develop
             else
-              git clone https://github.com/${{ github.repository }}.git
+              git clone -b develop https://github.com/${{ github.repository }}.git
               cd rutaexpress-backend
-              git checkout develop
             fi
-
-            # Compilar e iniciar contenedores con Docker Compose
-            mvn clean package -DskipTests
+            
+            echo "=== [PASO 3/4] COMPILANDO MICROSERVICIOS CON MAVEN ==="
+            mvn clean package -DskipTests -q
+            
+            echo "=== [PASO 4/4] DESPLEGANDO CONTENEDORES CON DOCKER COMPOSE ==="
             docker compose down || true
             docker compose up -d --build
+            
+            echo "=== DESPLIEGUE FINALIZADO EXITOSAMENTE ==="
             docker compose ps
