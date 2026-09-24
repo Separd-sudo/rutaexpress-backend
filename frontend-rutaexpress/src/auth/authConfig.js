@@ -18,7 +18,7 @@ export const msalConfig = {
 };
 
 export const loginRequest = {
-  scopes: [`api://${apiClientId}/access_as_user`]
+  scopes: ['openid', 'profile', 'email', 'User.Read']
 };
 
 export const isAzureConfigured = () => {

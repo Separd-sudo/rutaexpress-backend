@@ -13,11 +13,13 @@ import java.util.List;
 public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
     List<AuditEvent> findByShipmentIdOrderByTimestampAsc(Long shipmentId);
 
+    List<AuditEvent> findAllByOrderByTimestampDesc();
+
     @Query("SELECT a FROM AuditEvent a WHERE " +
-           "(:user IS NULL OR LOWER(a.performedBy) LIKE LOWER(CONCAT('%', :user, '%'))) AND " +
-           "(:eventType IS NULL OR a.eventType = :eventType) AND " +
-           "(:from IS NULL OR a.timestamp >= :from) AND " +
-           "(:to IS NULL OR a.timestamp <= :to) " +
+           "(cast(:user as string) IS NULL OR LOWER(a.performedBy) LIKE LOWER(CONCAT('%', :user, '%'))) AND " +
+           "(cast(:eventType as string) IS NULL OR a.eventType = :eventType) AND " +
+           "(cast(:from as string) IS NULL OR a.timestamp >= :from) AND " +
+           "(cast(:to as string) IS NULL OR a.timestamp <= :to) " +
            "ORDER BY a.timestamp DESC")
     List<AuditEvent> filterEvents(
             @Param("user") String user,

@@ -15,10 +15,16 @@ import java.util.Optional;
 public interface ShipmentRepository extends JpaRepository<Shipment, Long> {
     Optional<Shipment> findByTrackingNumber(String trackingNumber);
 
+    List<Shipment> findAllByOrderByCreatedAtDesc();
+
+    List<Shipment> findByStatusOrderByCreatedAtDesc(ShipmentStatus status);
+
+    List<Shipment> findByCreatedAtBetweenOrderByCreatedAtDesc(LocalDateTime from, LocalDateTime to);
+
     @Query("SELECT s FROM Shipment s WHERE " +
-           "(:status IS NULL OR s.status = :status) AND " +
-           "(:from IS NULL OR s.createdAt >= :from) AND " +
-           "(:to IS NULL OR s.createdAt <= :to) " +
+           "(cast(:status as string) IS NULL OR s.status = :status) AND " +
+           "(cast(:from as string) IS NULL OR s.createdAt >= :from) AND " +
+           "(cast(:to as string) IS NULL OR s.createdAt <= :to) " +
            "ORDER BY s.createdAt DESC")
     List<Shipment> filterShipments(
             @Param("status") ShipmentStatus status,
