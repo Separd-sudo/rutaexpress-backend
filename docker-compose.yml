@@ -32,8 +32,8 @@ services:
 
   catalog-svc:
     build:
-      context: ./ms-rutaexpress-catalog
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ms-rutaexpress-catalog/Dockerfile
     container_name: rtx-catalog-svc
     restart: unless-stopped
     ports:
@@ -58,8 +58,8 @@ services:
 
   audit-svc:
     build:
-      context: ./ms-rutaexpress-audit
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ms-rutaexpress-audit/Dockerfile
     container_name: rtx-audit-svc
     restart: unless-stopped
     ports:
@@ -84,8 +84,8 @@ services:
 
   shipments-svc:
     build:
-      context: ./ms-rutaexpress-shipments
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ms-rutaexpress-shipments/Dockerfile
     container_name: rtx-shipments-svc
     restart: unless-stopped
     ports:
@@ -116,8 +116,8 @@ services:
 
   bff-svc:
     build:
-      context: ./ms-rutaexpress-bff
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ms-rutaexpress-bff/Dockerfile
     container_name: rtx-bff-svc
     restart: unless-stopped
     ports:

@@ -31,18 +31,7 @@ jobs:
       - name: Build and package with Maven
         run: mvn --batch-mode --no-transfer-progress clean package -DskipTests
 
-      - name: Copy JARs and configs to EC2 via SCP
-        if: ${{ vars.TARGET_HOST_IP != '' }}
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ vars.TARGET_HOST_IP }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          source: "docker-compose.yml,docker/init-db/*,ms-rutaexpress-catalog/target/*.jar,ms-rutaexpress-catalog/Dockerfile,ms-rutaexpress-audit/target/*.jar,ms-rutaexpress-audit/Dockerfile,ms-rutaexpress-shipments/target/*.jar,ms-rutaexpress-shipments/Dockerfile,ms-rutaexpress-bff/target/*.jar,ms-rutaexpress-bff/Dockerfile"
-          target: "/home/ec2-user/rutaexpress-backend"
-
-      - name: Run Docker Compose on EC2 via SSH
+      - name: Deploy to EC2 via SSH
         if: ${{ vars.TARGET_HOST_IP != '' }}
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -50,16 +39,25 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          command_timeout: 5m
+          command_timeout: 10m
           script: |
             set -e
             echo "=== CONECTADO A EC2: ${{ vars.TARGET_HOST_IP }} ==="
-            cd /home/ec2-user/rutaexpress-backend
+            cd /home/ec2-user
             
-            echo "=== LEVANTANDO CONTENEDORES CON DOCKER COMPOSE ==="
+            if [ ! -d "rutaexpress-backend" ]; then
+              git clone -b develop https://github.com/${{ github.repository }}.git
+              cd rutaexpress-backend
+            else
+              cd rutaexpress-backend
+              git fetch origin
+              git checkout develop
+              git reset --hard origin/develop
+            fi
+            
+            echo "=== CONSTRUYENDO Y LEVANTANDO CONTENEDORES ==="
             docker compose down || true
             docker compose up -d --build
             
             echo "=== ESTADO DE CONTENEDORES ==="
             docker compose ps
-            echo "=== DESPLIEGUE FINALIZADO EXITOSAMENTE ==="
