@@ -26,3 +26,21 @@ export const isAzureConfigured = () => {
 };
 
 export const msalInstance = new PublicClientApplication(msalConfig);
+
+// Configuracion de AWS Cognito (Federacion OIDC)
+export const cognitoConfig = {
+  domain: import.meta.env.VITE_COGNITO_DOMAIN || '',
+  clientId: import.meta.env.VITE_COGNITO_CLIENT_ID || '',
+  redirectUri: import.meta.env.VITE_COGNITO_REDIRECT_URI || (typeof window !== 'undefined' ? `${window.location.origin}/` : 'http://localhost:5173/')
+};
+
+export const isCognitoConfigured = () => {
+  return Boolean(cognitoConfig.domain && cognitoConfig.clientId);
+};
+
+export const getCognitoLoginUrl = () => {
+  if (!isCognitoConfigured()) return '';
+  const domain = cognitoConfig.domain.replace(/\/$/, '');
+  const encodedRedirect = encodeURIComponent(cognitoConfig.redirectUri);
+  return `${domain}/login?client_id=${cognitoConfig.clientId}&response_type=code&scope=email+openid+profile&redirect_uri=${encodedRedirect}`;
+};
