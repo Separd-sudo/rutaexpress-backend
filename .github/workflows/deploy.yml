@@ -72,29 +72,42 @@ jobs:
           push: true
           tags: ghcr.io/separd-sudo/ms-rutaexpress-bff:latest
 
-      - name: Deploy to EC2 via SSH
+      - name: Deploy to EC2 via Native SSH
         if: ${{ vars.TARGET_HOST_IP != '' }}
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ vars.TARGET_HOST_IP }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: 22
-          command_timeout: 5m
-          script: |
+        env:
+          EC2_IP: ${{ vars.TARGET_HOST_IP }}
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+          BRANCH: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          
+          ssh -o StrictHostKeyChecking=no \
+              -o HostKeyAlgorithms=+ssh-rsa \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              -i ~/.ssh/ec2_key \
+              ec2-user@$EC2_IP \
+              "bash -s" << EOF
             set -e
-            echo "=== CONECTADO A EC2: ${{ vars.TARGET_HOST_IP }} ==="
+            echo "=== CONECTADO A EC2: $EC2_IP ==="
             cd /home/ec2-user
             
-            if [ ! -d "rutaexpress-backend" ]; then
-              git clone -b develop https://github.com/${{ github.repository }}.git
-              cd rutaexpress-backend
-            else
-              cd rutaexpress-backend
-              git fetch origin
-              git checkout develop
-              git reset --hard origin/develop
+            if [ ! -d "rutaexpress-backend/.git" ]; then
+              rm -rf rutaexpress-backend
+              git clone -b $BRANCH https://github.com/$REPO.git rutaexpress-backend
             fi
+            
+            cd rutaexpress-backend
+            git fetch origin
+            git checkout $BRANCH
+            git reset --hard origin/$BRANCH
+            
+            echo "=== AUTENTICANDO CON GHCR EN EC2 ==="
+            echo "$GH_TOKEN" | docker login ghcr.io -u $GH_ACTOR --password-stdin
             
             echo "=== DESCARGANDO IMAGENES PRECONSTRUIDAS ==="
             docker compose pull
@@ -105,3 +118,4 @@ jobs:
             
             echo "=== ESTADO DE CONTENEDORES ==="
             docker compose ps
+          EOF
