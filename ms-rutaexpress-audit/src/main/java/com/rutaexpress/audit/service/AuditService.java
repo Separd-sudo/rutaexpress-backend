@@ -52,8 +52,13 @@ public class AuditService {
 
     @Transactional(readOnly = true)
     public List<AuditEventResponse> searchEvents(String user, String eventType, LocalDateTime from, LocalDateTime to) {
-        return repository.filterEvents(user, eventType, from, to)
-                .stream()
+        List<AuditEvent> list;
+        if ((user == null || user.isBlank()) && (eventType == null || eventType.isBlank()) && from == null && to == null) {
+            list = repository.findAllByOrderByTimestampDesc();
+        } else {
+            list = repository.filterEvents(user, eventType, from, to);
+        }
+        return list.stream()
                 .map(this::mapToResponse)
                 .toList();
     }

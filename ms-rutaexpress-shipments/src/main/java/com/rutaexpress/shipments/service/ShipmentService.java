@@ -101,8 +101,17 @@ public class ShipmentService {
 
     @Transactional(readOnly = true)
     public List<ShipmentResponse> getShipments(ShipmentStatus status, LocalDateTime from, LocalDateTime to) {
-        return repository.filterShipments(status, from, to)
-                .stream()
+        List<Shipment> list;
+        if (status == null && from == null && to == null) {
+            list = repository.findAllByOrderByCreatedAtDesc();
+        } else if (status != null && from == null && to == null) {
+            list = repository.findByStatusOrderByCreatedAtDesc(status);
+        } else if (status == null && from != null && to != null) {
+            list = repository.findByCreatedAtBetweenOrderByCreatedAtDesc(from, to);
+        } else {
+            list = repository.filterShipments(status, from, to);
+        }
+        return list.stream()
                 .map(this::mapToResponse)
                 .toList();
     }
