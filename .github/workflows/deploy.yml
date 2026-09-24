@@ -39,7 +39,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy to EC2 Instance via SSH
-        if: ${{ vars.TARGET_HOST_IP != '' && secrets.EC2_SSH_KEY != '' }}
+        if: ${{ vars.TARGET_HOST_IP != '' }}
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ vars.TARGET_HOST_IP }}
