@@ -87,6 +87,10 @@ jobs:
           chmod 600 ~/.ssh/ec2_key
           
           ssh -o StrictHostKeyChecking=no \
+              -o BatchMode=yes \
+              -o ConnectTimeout=30 \
+              -o ServerAliveInterval=15 \
+              -o ServerAliveCountMax=4 \
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               -i ~/.ssh/ec2_key \
@@ -95,7 +99,24 @@ jobs:
             set -e
             echo "=== CONECTADO A EC2: $EC2_IP ==="
             cd /home/ec2-user
+
+            # 1. Configurar Swap de 2GB si no existe
+            if [ ! -f /swapfile ]; then
+              echo "=== CREANDO SWAPFILE DE 2GB ==="
+              sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab || true
+            fi
             
+            # 2. Detectar comando docker (con o sin sudo)
+            DOCKER="docker"
+            if ! docker ps > /dev/null 2>&1; then
+              DOCKER="sudo docker"
+            fi
+
+            # 3. Clonar o actualizar repositorio
             if [ ! -d "rutaexpress-backend/.git" ]; then
               rm -rf rutaexpress-backend
               git clone -b $BRANCH https://github.com/$REPO.git rutaexpress-backend
@@ -106,16 +127,17 @@ jobs:
             git checkout $BRANCH
             git reset --hard origin/$BRANCH
             
+            # 4. Autenticar con GHCR y descargar imagenes
             echo "=== AUTENTICANDO CON GHCR EN EC2 ==="
-            echo "$GH_TOKEN" | docker login ghcr.io -u $GH_ACTOR --password-stdin
+            echo "$GH_TOKEN" | \$DOCKER login ghcr.io -u $GH_ACTOR --password-stdin
             
             echo "=== DESCARGANDO IMAGENES PRECONSTRUIDAS ==="
-            docker compose pull
+            \$DOCKER compose pull
             
-            echo "=== INICIANDO CONTENEDORES ==="
-            docker compose down || true
-            docker compose up -d
+            echo "=== INICIANDO CONTENEDORES OPTIMIZADOS ==="
+            \$DOCKER compose down --remove-orphans || true
+            \$DOCKER compose up -d
             
             echo "=== ESTADO DE CONTENEDORES ==="
-            docker compose ps
+            \$DOCKER compose ps
           EOF

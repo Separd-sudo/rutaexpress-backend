@@ -32,9 +32,6 @@ services:
 
   catalog-svc:
     image: ghcr.io/separd-sudo/ms-rutaexpress-catalog:latest
-    build:
-      context: .
-      dockerfile: ms-rutaexpress-catalog/Dockerfile
     container_name: rtx-catalog-svc
     restart: unless-stopped
     ports:
@@ -45,6 +42,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -Xms96m -Xmx192m
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -59,9 +57,6 @@ services:
 
   audit-svc:
     image: ghcr.io/separd-sudo/ms-rutaexpress-audit:latest
-    build:
-      context: .
-      dockerfile: ms-rutaexpress-audit/Dockerfile
     container_name: rtx-audit-svc
     restart: unless-stopped
     ports:
@@ -72,6 +67,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=postgres
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -Xms96m -Xmx192m
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -86,9 +82,6 @@ services:
 
   shipments-svc:
     image: ghcr.io/separd-sudo/ms-rutaexpress-shipments:latest
-    build:
-      context: .
-      dockerfile: ms-rutaexpress-shipments/Dockerfile
     container_name: rtx-shipments-svc
     restart: unless-stopped
     ports:
@@ -101,6 +94,7 @@ services:
       - CATALOG_SERVICE_URL=http://catalog-svc:8082
       - AUDIT_SERVICE_URL=http://audit-svc:8083
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -Xms96m -Xmx192m
     depends_on:
       postgres-db:
         condition: service_healthy
@@ -119,9 +113,6 @@ services:
 
   bff-svc:
     image: ghcr.io/separd-sudo/ms-rutaexpress-bff:latest
-    build:
-      context: .
-      dockerfile: ms-rutaexpress-bff/Dockerfile
     container_name: rtx-bff-svc
     restart: unless-stopped
     ports:
@@ -133,6 +124,7 @@ services:
       - AUDIT_SERVICE_URL=http://audit-svc:8083
       - SECURITY_AZURE_ENABLED=false
       - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -Xms96m -Xmx192m
     depends_on:
       shipments-svc:
         condition: service_healthy
