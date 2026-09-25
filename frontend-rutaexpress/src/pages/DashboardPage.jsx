@@ -137,154 +137,50 @@ export const DashboardPage = () => {
     }
   };
 
-  // Metricas para rol Admin
-  const totalShipments = shipments.length;
-  const inTransitCount = shipments.filter(s => s.status === 'EN_RUTA').length;
-  const inWarehouseCount = shipments.filter(s => s.status === 'EN_BODEGA').length;
-  const deliveredCount = shipments.filter(s => s.status === 'ENTREGADO').length;
-
   return (
-    <div className="container" style={{ paddingBottom: '3rem' }}>
-      {/* Encabezado */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '1.5rem 0', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a' }}>
-            Panel de Operaciones
-          </h1>
-          <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
-            Sesion activa: <strong>{user?.name}</strong> | Rol asignado: <span className="badge badge-creado">{role}</span>
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          {(role === 'Cliente' || role === 'Despachador' || role === 'Admin') && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn btn-accent"
-              style={{ fontSize: '0.8125rem' }}
-            >
-              Nuevo Envio
-            </button>
-          )}
-          <button
-            onClick={loadData}
-            className="btn btn-outline"
-            style={{ fontSize: '0.8125rem' }}
-          >
-            Actualizar Datos
-          </button>
-        </div>
-      </div>
-
+    <div style={{ maxWidth: '960px', margin: '2rem auto', padding: '0 1rem', paddingBottom: '3rem' }}>
       {/* Alertas */}
       {error && (
-        <div style={{ backgroundColor: '#fee2e2', border: '1px solid #f87171', color: '#991b1b', padding: '0.875rem', borderRadius: '0.375rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-          <strong>Alerta:</strong> {error}
+        <div style={{ border: '1px solid #d1d5db', backgroundColor: '#f9fafb', color: '#111827', padding: '0.75rem 1rem', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+          <strong>Aviso:</strong> {error}
         </div>
       )}
       {successMsg && (
-        <div style={{ backgroundColor: '#dcfce7', border: '1px solid #86efac', color: '#166534', padding: '0.875rem', borderRadius: '0.375rem', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        <div style={{ border: '1px solid #d1d5db', backgroundColor: '#f9fafb', color: '#111827', padding: '0.75rem 1rem', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '1rem' }}>
           {successMsg}
         </div>
       )}
 
-      {/* VISTA SEGUN RUBRICA - ROL ADMIN: KPIS DE RED */}
-      {role === 'Admin' && (
-        <section style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0f172a', marginBottom: '1rem' }}>
-            KPIs de la Red Logistica
-          </h2>
-          <div className="grid-4">
-            <div className="card" style={{ marginBottom: 0 }}>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 600 }}>Total de Envios</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#0f172a', marginTop: '0.25rem' }}>{totalShipments}</div>
-            </div>
-            <div className="card" style={{ marginBottom: 0 }}>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 600 }}>En Bodega</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#6d28d9', marginTop: '0.25rem' }}>{inWarehouseCount}</div>
-            </div>
-            <div className="card" style={{ marginBottom: 0 }}>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 600 }}>En Ruta (Activos)</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#c2410c', marginTop: '0.25rem' }}>{inTransitCount}</div>
-            </div>
-            <div className="card" style={{ marginBottom: 0 }}>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 600 }}>Entregados</div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#15803d', marginTop: '0.25rem' }}>{deliveredCount}</div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginTop: '1.5rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Capacidad de Flota por Servicio (Catalogo)</h3>
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Codigo</th>
-                    <th>Servicio</th>
-                    <th>Tarifa Base</th>
-                    <th>Por Km</th>
-                    <th>Capacidad Maxima</th>
-                    <th>Cupos Disponibles</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {services.map(s => (
-                    <tr key={s.id}>
-                      <td><code>{s.code}</code></td>
-                      <td><strong>{s.name}</strong></td>
-                      <td>${s.basePrice}</td>
-                      <td>${s.pricePerKm}</td>
-                      <td>{s.maxDailyCapacity} vehiculos/dia</td>
-                      <td>
-                        <span style={{ fontWeight: 700, color: s.availableCapacity <= 5 ? '#dc2626' : '#16a34a' }}>
-                          {s.availableCapacity} disponibles
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`badge ${s.active ? 'badge-entregado' : 'badge-cancelado'}`}>
-                          {s.active ? 'Activo' : 'Inactivo'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* VISTA SEGUN RUBRICA - ROL DESPACHADOR: ENVIOS EN BODEGA Y EN RUTA */}
-      {role === 'Despachador' && (
-        <section style={{ marginBottom: '2rem' }}>
-          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-            <div className="card" style={{ marginBottom: 0, borderLeft: '4px solid #6d28d9' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>ENVIOS EN BODEGA</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.25rem' }}>{inWarehouseCount} pendientes de salida</div>
-            </div>
-            <div className="card" style={{ marginBottom: 0, borderLeft: '4px solid #c2410c' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>ENVIOS EN RUTA</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '0.25rem' }}>{inTransitCount} en transito de entrega</div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* TABLA PRINCIPAL DE ENVIOS (ACCESIBLE PARA TODOS) */}
-      <section className="card">
-        <div className="card-header">
+      {/* TABLA PRINCIPAL DE ENVIOS (CENTRADA EN EL MEDIO) */}
+      <section className="card" style={{ border: '1px solid #e5e7eb', boxShadow: 'none' }}>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.75rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0f172a' }}>
-              {role === 'Cliente' ? 'Mis Solicitudes de Envio' : 'Listado Maestro de Envios'}
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#111827', margin: 0 }}>
+              {role === 'Cliente' ? 'Mis Envios' : 'Envios Registrados'}
             </h2>
-            <p style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-              Gestion del ciclo de vida y trazabilidad en tiempo real a traves del BFF.
-            </p>
+            <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              Total: {shipments.length} registro(s)
+            </span>
           </div>
-          <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-            Total: {shipments.length} registro(s)
-          </span>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {(role === 'Cliente' || role === 'Despachador' || role === 'Admin') && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="btn btn-accent"
+                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', backgroundColor: '#111827', borderColor: '#111827', color: '#ffffff' }}
+              >
+                Nuevo Envio
+              </button>
+            )}
+            <button
+              onClick={loadData}
+              className="btn btn-outline"
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#374151', borderColor: '#d1d5db' }}
+            >
+              Actualizar
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -301,13 +197,12 @@ export const DashboardPage = () => {
                   <th>Remitente</th>
                   <th>Destinatario</th>
                   <th>Costo</th>
-                  <th>Estado Actual</th>
+                  <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {shipments.map(s => {
-                  const badgeClass = `badge-${s.status.toLowerCase()}`;
                   return (
                     <tr key={s.id}>
                       <td>
@@ -324,7 +219,9 @@ export const DashboardPage = () => {
                       </td>
                       <td><strong>${s.shippingCost}</strong></td>
                       <td>
-                        <span className={`badge ${badgeClass}`}>{s.status}</span>
+                        <span style={{ border: '1px solid #d1d5db', padding: '0.15rem 0.45rem', borderRadius: '3px', fontSize: '0.75rem', color: '#374151' }}>
+                          {s.status}
+                        </span>
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
