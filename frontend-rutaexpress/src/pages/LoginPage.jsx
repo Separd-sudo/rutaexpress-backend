@@ -88,15 +88,15 @@ export const LoginPage = () => {
             <div style={{ flex: 1, height: '1px', backgroundColor: '#e2e8f0' }}></div>
           </div>
 
-          {/* Selector de perfiles para evaluacion academica y funcional inmediata */}
+          {/* Selector de perfiles para evaluacion funcional */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <button
               onClick={() => handleDemoLogin('Admin')}
               className="btn btn-outline"
               style={{ justifyContent: 'space-between', fontSize: '0.8125rem', padding: '0.5rem 0.875rem' }}
             >
-              <span>Entrar como <strong>Administrador</strong></span>
-              <span className="badge badge-creado">Admin</span>
+              <span>Entrar como Administrador</span>
+              <span style={{ border: '1px solid #d1d5db', padding: '0.1rem 0.4rem', borderRadius: '3px', fontSize: '0.75rem', color: '#4b5563' }}>Admin</span>
             </button>
 
             <button
@@ -104,8 +104,8 @@ export const LoginPage = () => {
               className="btn btn-outline"
               style={{ justifyContent: 'space-between', fontSize: '0.8125rem', padding: '0.5rem 0.875rem' }}
             >
-              <span>Entrar como <strong>Despachador</strong></span>
-              <span className="badge badge-en_bodega">Operador</span>
+              <span>Entrar como Despachador</span>
+              <span style={{ border: '1px solid #d1d5db', padding: '0.1rem 0.4rem', borderRadius: '3px', fontSize: '0.75rem', color: '#4b5563' }}>Despachador</span>
             </button>
 
             <button
@@ -113,8 +113,8 @@ export const LoginPage = () => {
               className="btn btn-outline"
               style={{ justifyContent: 'space-between', fontSize: '0.8125rem', padding: '0.5rem 0.875rem' }}
             >
-              <span>Entrar como <strong>Cliente</strong></span>
-              <span className="badge badge-aceptado">Cliente</span>
+              <span>Entrar como Cliente</span>
+              <span style={{ border: '1px solid #d1d5db', padding: '0.1rem 0.4rem', borderRadius: '3px', fontSize: '0.75rem', color: '#4b5563' }}>Cliente</span>
             </button>
 
             <button
@@ -122,8 +122,8 @@ export const LoginPage = () => {
               className="btn btn-outline"
               style={{ justifyContent: 'space-between', fontSize: '0.8125rem', padding: '0.5rem 0.875rem' }}
             >
-              <span>Entrar como <strong>Auditor</strong></span>
-              <span className="badge badge-entregado">Solo lectura</span>
+              <span>Entrar como Auditor</span>
+              <span style={{ border: '1px solid #d1d5db', padding: '0.1rem 0.4rem', borderRadius: '3px', fontSize: '0.75rem', color: '#4b5563' }}>Auditor</span>
             </button>
           </div>
         </div>

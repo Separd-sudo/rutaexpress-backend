@@ -22,7 +22,7 @@ export const TokenInspectorModal = ({ isOpen, onClose }) => {
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(15, 23, 42, 0.55)',
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -31,28 +31,29 @@ export const TokenInspectorModal = ({ isOpen, onClose }) => {
     }}>
       <div style={{
         backgroundColor: '#ffffff',
-        borderRadius: '0.625rem',
+        borderRadius: '4px',
         width: '100%',
-        maxWidth: '480px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+        maxWidth: '520px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
         overflow: 'hidden',
-        border: '1px solid #e2e8f0'
+        border: '1px solid #d1d5db',
+        color: '#111827'
       }}>
         {/* Cabecera */}
         <div style={{
-          padding: '1rem 1.25rem',
-          borderBottom: '1px solid #e2e8f0',
+          padding: '0.875rem 1.25rem',
+          borderBottom: '1px solid #e5e7eb',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: '#f8fafc'
+          backgroundColor: '#f9fafb'
         }}>
           <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', margin: 0 }}>
-              Token Activo de Sesión
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0, color: '#111827' }}>
+              Token de Sesion
             </h3>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.15rem 0 0 0' }}>
-              {user?.name} · <strong style={{ color: '#2563eb' }}>Rol: {user?.role}</strong>
+            <p style={{ fontSize: '0.8rem', color: '#4b5563', margin: '0.15rem 0 0 0' }}>
+              Usuario: {user?.name} | Rol: {user?.role}
             </p>
           </div>
           <button
@@ -60,45 +61,62 @@ export const TokenInspectorModal = ({ isOpen, onClose }) => {
             style={{
               background: 'none',
               border: 'none',
-              fontSize: '1.4rem',
-              color: '#94a3b8',
+              fontSize: '1.25rem',
+              color: '#6b7280',
               cursor: 'pointer',
               lineHeight: 1
             }}
           >
-            &times;
+            X
           </button>
         </div>
 
-        {/* Contenido: solo el token de sesion */}
+        {/* Contenido */}
         <div style={{ padding: '1.25rem' }}>
+          
+          {/* Informacion de Creacion y Validacion del Token */}
+          <div style={{
+            border: '1px solid #e5e7eb',
+            backgroundColor: '#f9fafb',
+            borderRadius: '4px',
+            padding: '0.75rem',
+            marginBottom: '1rem',
+            fontSize: '0.8rem',
+            lineHeight: 1.5,
+            color: '#374151'
+          }}>
+            <div><strong>Creacion:</strong> Emitido por Microsoft Entra ID (Algoritmo RS256 con clave asimetrica)</div>
+            <div><strong>Validacion:</strong> Verificado por endpoint JWKS en el BFF de Spring Boot</div>
+            <div><strong>Estado:</strong> Activo para peticiones Authorization: Bearer</div>
+          </div>
+
           <label style={{
             display: 'block',
             fontSize: '0.75rem',
             fontWeight: 600,
-            color: '#475569',
-            marginBottom: '0.375rem',
+            color: '#374151',
+            marginBottom: '0.35rem',
             textTransform: 'uppercase'
           }}>
-            Bearer Token (JWT):
+            Token Activo (JWT):
           </label>
 
           <textarea
             readOnly
-            value={token || 'No hay token generado'}
-            rows={7}
+            value={token || 'No hay token disponible'}
+            rows={6}
             style={{
               width: '100%',
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              borderRadius: '0.375rem',
+              backgroundColor: '#f9fafb',
+              border: '1px solid #d1d5db',
+              borderRadius: '4px',
               fontSize: '0.75rem',
-              fontFamily: 'Consolas, monospace',
-              padding: '0.625rem',
-              color: '#0f172a',
+              fontFamily: 'monospace',
+              padding: '0.5rem',
+              color: '#111827',
               resize: 'none',
               boxSizing: 'border-box',
-              lineHeight: 1.4,
+              lineHeight: 1.35,
               wordBreak: 'break-all'
             }}
             onClick={(e) => e.target.select()}
@@ -107,24 +125,31 @@ export const TokenInspectorModal = ({ isOpen, onClose }) => {
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
             <button
               onClick={handleCopy}
-              className="btn btn-accent"
               style={{
                 flex: 1,
-                padding: '0.625rem 1rem',
+                padding: '0.5rem 1rem',
                 fontSize: '0.85rem',
-                backgroundColor: copied ? '#16a34a' : '#2563eb',
-                borderColor: copied ? '#16a34a' : '#2563eb',
+                backgroundColor: '#111827',
+                border: '1px solid #111827',
                 color: '#ffffff',
                 fontWeight: 600,
+                borderRadius: '4px',
                 cursor: 'pointer'
               }}
             >
-              {copied ? '✓ Token Copiado al Portapapeles' : 'Copiar Token'}
+              {copied ? 'Copiado' : 'Copiar Token'}
             </button>
             <button
               onClick={onClose}
-              className="btn btn-outline"
-              style={{ padding: '0.625rem 1rem', fontSize: '0.85rem' }}
+              style={{
+                padding: '0.5rem 1rem',
+                fontSize: '0.85rem',
+                backgroundColor: '#ffffff',
+                border: '1px solid #d1d5db',
+                color: '#374151',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
             >
               Cerrar
             </button>
