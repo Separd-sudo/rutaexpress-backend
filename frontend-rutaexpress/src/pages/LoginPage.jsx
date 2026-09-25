@@ -20,10 +20,8 @@ export const LoginPage = () => {
     setIsLoggingIn(true);
     try {
       await loginWithMicrosoft();
-      navigate('/dashboard');
     } catch (err) {
       setErrorMsg(err.message || 'Error al conectar con Microsoft Entra ID');
-    } finally {
       setIsLoggingIn(false);
     }
   };
