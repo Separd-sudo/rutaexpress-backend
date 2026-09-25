@@ -1,512 +1,212 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import bffApi from '../services/bffApi';
 
 export const DashboardPage = () => {
-  const { user, role } = useAuth();
-
-  // Estados comunes
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [successMsg, setSuccessMsg] = useState(null);
-
-  // Datos
-  const [services, setServices] = useState([]);
-  const [shipments, setShipments] = useState([]);
-  const [selectedTrace, setSelectedTrace] = useState(null);
-  const [loadingTrace, setLoadingTrace] = useState(false);
-
-  // Formulario nuevo envio (Cliente/Despachador)
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newShipment, setNewShipment] = useState({
-    serviceId: '',
-    senderName: '',
-    senderAddress: '',
-    senderPhone: '',
-    recipientName: '',
-    recipientAddress: '',
-    recipientEmail: '',
-    recipientPhone: '',
-    weightKg: 1.0,
-    distanceKm: 10.0,
-    declaredValue: 20000.0,
-    notes: ''
-  });
-
-  const loadData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [svcData, shipData] = await Promise.all([
-        bffApi.getCatalogServices().catch(() => []),
-        bffApi.getShipments().catch(() => [])
-      ]);
-      setServices(svcData || []);
-      setShipments(shipData || []);
-      if (svcData && svcData.length > 0 && !newShipment.serviceId) {
-        setNewShipment(prev => ({ ...prev, serviceId: svcData[0].id }));
-      }
-    } catch (err) {
-      setError('Error al sincronizar con el backend (BFF). Verifique que los servicios esten activos.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { user, role, token, logout } = useAuth();
+  const navigate = useNavigate();
+  const [bffStatus, setBffStatus] = useState('Verificando');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    loadData();
+    let isMounted = true;
+    const checkBff = async () => {
+      try {
+        const health = await bffApi.getHealth();
+        if (isMounted) {
+          setBffStatus(health?.status === 'UP' ? 'Conectado (UP)' : 'Degradado');
+        }
+      } catch (e) {
+        if (isMounted) {
+          setBffStatus('Desconectado');
+        }
+      }
+    };
+    checkBff();
+    const interval = setInterval(checkBff, 15000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
-  // Acciones de Despachador: Cambiar estado
-  const handleStatusChange = async (shipmentId, nextStatus) => {
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      await bffApi.updateShipmentStatus(
-        shipmentId,
-        nextStatus,
-        user?.email || 'operador@rutaexpress.cl',
-        role || 'Despachador',
-        `Transicion a ${nextStatus} ejecutada desde Portal Web`
-      );
-      setSuccessMsg(`Estado actualizado correctamente a ${nextStatus}.`);
-      await loadData();
-      if (selectedTrace?.shipment?.id === shipmentId) {
-        handleViewTrace(shipmentId);
-      }
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Error al cambiar estado';
-      setError(msg);
+  const handleCopy = () => {
+    if (token) {
+      navigator.clipboard.writeText(token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
-  // Accion DELETE: Eliminar o cancelar envio (Cliente y Admin)
-  const handleDeleteShipment = async (id, tracking) => {
-    if (!window.confirm(`¿Está seguro de eliminar el envío ${tracking}? Esta acción ejecutará una petición HTTP DELETE hacia el BFF.`)) {
-      return;
-    }
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      await bffApi.deleteShipment(id);
-      setSuccessMsg(`Envío ${tracking} eliminado exitosamente (HTTP DELETE procesado por el BFF).`);
-      if (selectedTrace?.shipment?.id === id) {
-        setSelectedTrace(null);
-      }
-      await loadData();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Error al eliminar el envío';
-      setError(msg);
-    }
-  };
-
-  // Ver agregacion completa y timeline de auditoria
-  const handleViewTrace = async (shipmentId) => {
-    setLoadingTrace(true);
-    try {
-      const trace = await bffApi.getFullTrace(shipmentId);
-      setSelectedTrace(trace);
-    } catch (err) {
-      setError('No fue posible consultar el timeline de auditoria para este envio.');
-    } finally {
-      setLoadingTrace(false);
-    }
-  };
-
-  // Enviar formulario de creacion
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setSuccessMsg(null);
-    try {
-      const payload = {
-        ...newShipment,
-        serviceId: Number(newShipment.serviceId),
-        weightKg: Number(newShipment.weightKg),
-        distanceKm: Number(newShipment.distanceKm),
-        declaredValue: Number(newShipment.declaredValue),
-        createdBy: user?.email || 'cliente@correo.cl'
-      };
-      const created = await bffApi.createShipment(payload);
-      setSuccessMsg(`Envio creado exitosamente con tracking ${created.trackingNumber}.`);
-      setShowCreateModal(false);
-      await loadData();
-    } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Error al crear envio';
-      setError(msg);
-    }
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   return (
-    <div style={{ maxWidth: '960px', margin: '2rem auto', padding: '0 1rem', paddingBottom: '3rem' }}>
-      {/* Alertas */}
-      {error && (
-        <div style={{ border: '1px solid #d1d5db', backgroundColor: '#f9fafb', color: '#111827', padding: '0.75rem 1rem', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-          <strong>Aviso:</strong> {error}
-        </div>
-      )}
-      {successMsg && (
-        <div style={{ border: '1px solid #d1d5db', backgroundColor: '#f9fafb', color: '#111827', padding: '0.75rem 1rem', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-          {successMsg}
-        </div>
-      )}
-
-      {/* TABLA PRINCIPAL DE ENVIOS (CENTRADA EN EL MEDIO) */}
-      <section className="card" style={{ border: '1px solid #e5e7eb', boxShadow: 'none' }}>
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.75rem', gap: '0.5rem' }}>
-          {(role === 'Cliente' || role === 'Despachador' || role === 'Admin') && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="btn btn-accent"
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', backgroundColor: '#111827', borderColor: '#111827', color: '#ffffff' }}
-            >
-              Nuevo Envio
-            </button>
-          )}
-          <button
-            onClick={loadData}
-            className="btn btn-outline"
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#374151', borderColor: '#d1d5db' }}
-          >
-            Actualizar
-          </button>
-        </div>
-
-        {loading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>Cargando datos desde el BFF...</div>
-        ) : shipments.length === 0 ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: '#64748b' }}>No hay envios registrados en el sistema.</div>
-        ) : (
-          <div className="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Tracking</th>
-                  <th>Servicio</th>
-                  <th>Remitente</th>
-                  <th>Destinatario</th>
-                  <th>Costo</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shipments.map(s => {
-                  return (
-                    <tr key={s.id}>
-                      <td>
-                        <strong><code>{s.trackingNumber}</code></strong>
-                      </td>
-                      <td>{s.serviceCode}</td>
-                      <td>
-                        <div>{s.senderName}</div>
-                        <small style={{ color: '#64748b' }}>{s.senderAddress}</small>
-                      </td>
-                      <td>
-                        <div>{s.recipientName}</div>
-                        <small style={{ color: '#64748b' }}>{s.recipientAddress}</small>
-                      </td>
-                      <td><strong>${s.shippingCost}</strong></td>
-                      <td>
-                        <span style={{ border: '1px solid #d1d5db', padding: '0.15rem 0.45rem', borderRadius: '3px', fontSize: '0.75rem', color: '#374151' }}>
-                          {s.status}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
-                          {/* Transiciones operativas para Despachador y Admin */}
-                          {(role === 'Despachador' || role === 'Admin') && (
-                            <>
-                              {s.status === 'CREADO' && (
-                                <button
-                                  onClick={() => handleStatusChange(s.id, 'ACEPTADO')}
-                                  className="btn btn-outline"
-                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                                >
-                                  Aceptar
-                                </button>
-                              )}
-                              {s.status === 'ACEPTADO' && (
-                                <button
-                                  onClick={() => handleStatusChange(s.id, 'EN_BODEGA')}
-                                  className="btn btn-outline"
-                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                                >
-                                  A Bodega
-                                </button>
-                              )}
-                              {s.status === 'EN_BODEGA' && (
-                                <button
-                                  onClick={() => handleStatusChange(s.id, 'EN_RUTA')}
-                                  className="btn btn-outline"
-                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: '#fdba74', color: '#c2410c' }}
-                                >
-                                  Despachar
-                                </button>
-                              )}
-                              {s.status === 'EN_RUTA' && (
-                                <button
-                                  onClick={() => handleStatusChange(s.id, 'ENTREGADO')}
-                                  className="btn btn-outline"
-                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: '#86efac', color: '#15803d' }}
-                                >
-                                  Entregar
-                                </button>
-                              )}
-                              {s.status !== 'ENTREGADO' && s.status !== 'CANCELADO' && (
-                                <button
-                                  onClick={() => handleStatusChange(s.id, 'CANCELADO')}
-                                  className="btn btn-outline"
-                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', color: '#b91c1c' }}
-                                >
-                                  Cancelar
-                                </button>
-                              )}
-                            </>
-                          )}
-
-                          {/* Ver Timeline de Auditoria (Todos, especialmente Auditor) */}
-                          <button
-                            onClick={() => handleViewTrace(s.id)}
-                            className="btn btn-outline"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                          >
-                            Timeline
-                          </button>
-
-                          {/* Accion DELETE para Cliente y Admin (envios en CREADO o CANCELADO) */}
-                          {(role === 'Cliente' || role === 'Admin') && (s.status === 'CREADO' || s.status === 'CANCELADO') && (
-                            <button
-                              onClick={() => handleDeleteShipment(s.id, s.trackingNumber)}
-                              className="btn btn-outline"
-                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: '#fca5a5', color: '#dc2626' }}
-                              title="Eliminar registro mediante HTTP DELETE hacia el BFF"
-                            >
-                              Eliminar
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* PANEL / MODAL DE TRAZABILIDAD Y AUDITORIA (FULL TRACE DEL BFF) */}
-      {selectedTrace && (
-        <section className="card" style={{ borderColor: '#38bdf8', backgroundColor: '#f0f9ff' }}>
-          <div className="card-header" style={{ borderColor: '#bae6fd' }}>
-            <div>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#0369a1' }}>
-                Timeline de Auditoria e Integracion: Envio {selectedTrace.shipment?.trackingNumber}
-              </h3>
-              <p style={{ fontSize: '0.8125rem', color: '#0284c7' }}>
-                Consulta unificada provista por el endpoint agregador del BFF (/api/bff/shipments/{'{id}'}/full-trace).
-              </p>
-            </div>
-            <button
-              onClick={() => setSelectedTrace(null)}
-              className="btn btn-outline"
-              style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-            >
-              Cerrar Vista
-            </button>
-          </div>
-
-          <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '0.375rem', border: '1px solid #e0f2fe' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>DATOS DEL ENVIO</div>
-              <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                <div><strong>Destinatario:</strong> {selectedTrace.shipment?.recipientName} ({selectedTrace.shipment?.recipientAddress})</div>
-                <div><strong>Estado Actual:</strong> <span className="badge badge-creado">{selectedTrace.shipment?.status}</span></div>
-                <div><strong>Tarifa Total:</strong> ${selectedTrace.shipment?.shippingCost}</div>
-              </div>
-            </div>
-
-            <div style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '0.375rem', border: '1px solid #e0f2fe' }}>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>SERVICIO ASOCIADO (CATALOGO)</div>
-              <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                <div><strong>Nombre:</strong> {selectedTrace.catalogService?.name || 'Servicio General'}</div>
-                <div><strong>Tarifa Base:</strong> ${selectedTrace.catalogService?.basePrice}</div>
-                <div><strong>Capacidad Disponible:</strong> {selectedTrace.catalogService?.availableCapacity} vehiculos</div>
-              </div>
-            </div>
-          </div>
-
-          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#0369a1', marginBottom: '0.75rem' }}>
-            Historial Cronologico de Eventos (Auditoria Inmutable):
-          </h4>
-
-          {selectedTrace.timeline?.length === 0 ? (
-            <p style={{ fontSize: '0.8125rem', color: '#64748b' }}>No hay eventos registrados para este envio.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {selectedTrace.timeline.map((evt, idx) => (
-                <div key={idx} style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '0.75rem', fontSize: '0.8125rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '0.75rem', marginBottom: '0.25rem' }}>
-                    <span><strong>{evt.eventType}</strong> - {evt.timestamp}</span>
-                    <span>Ejecutado por: <strong>{evt.performedBy}</strong> ({evt.userRole})</span>
-                  </div>
-                  <div style={{ color: '#1e293b' }}>{evt.details}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* MODAL / FORMULARIO CREAR ENVIO */}
-      {showCreateModal && (
+    <div style={{
+      minHeight: 'calc(100vh - 70px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem 1rem'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '560px',
+        backgroundColor: '#ffffff',
+        border: '1px solid #d1d5db',
+        borderRadius: '6px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+        overflow: 'hidden'
+      }}>
+        {/* Cabecera */}
         <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          padding: '1.25rem 1.5rem',
+          borderBottom: '1px solid #e5e7eb',
+          backgroundColor: '#f9fafb',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem'
+          justifyContent: 'space-between',
+          alignItems: 'center'
         }}>
-          <div className="card" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="card-header">
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>Registrar Nueva Solicitud de Envio</h3>
-              <button onClick={() => setShowCreateModal(false)} className="btn btn-outline" style={{ padding: '0.25rem 0.5rem' }}>X</button>
-            </div>
-
-            <form onSubmit={handleCreateSubmit}>
-              <div className="form-group">
-                <label className="form-label">Tipo de Servicio (Catalogo):</label>
-                <select
-                  className="form-control"
-                  value={newShipment.serviceId}
-                  onChange={e => setNewShipment({ ...newShipment, serviceId: e.target.value })}
-                  required
-                >
-                  {services.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} (${s.basePrice} base + ${s.pricePerKm}/km) - Cupos: {s.availableCapacity}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Remitente:</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Nombre remitente"
-                    value={newShipment.senderName}
-                    onChange={e => setNewShipment({ ...newShipment, senderName: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Direccion Origen:</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Av. Providencia 1234"
-                    value={newShipment.senderAddress}
-                    onChange={e => setNewShipment({ ...newShipment, senderAddress: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid-2">
-                <div className="form-group">
-                  <label className="form-label">Destinatario:</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Nombre destinatario"
-                    value={newShipment.recipientName}
-                    onChange={e => setNewShipment({ ...newShipment, recipientName: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Direccion Destino:</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Calle Valparaiso 567"
-                    value={newShipment.recipientAddress}
-                    onChange={e => setNewShipment({ ...newShipment, recipientAddress: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid-3">
-                <div className="form-group">
-                  <label className="form-label">Peso (Kg):</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    className="form-control"
-                    value={newShipment.weightKg}
-                    onChange={e => setNewShipment({ ...newShipment, weightKg: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Distancia (Km):</label>
-                  <input
-                    type="number"
-                    step="1"
-                    className="form-control"
-                    value={newShipment.distanceKm}
-                    onChange={e => setNewShipment({ ...newShipment, distanceKm: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Valor Declarado ($):</label>
-                  <input
-                    type="number"
-                    step="100"
-                    className="form-control"
-                    value={newShipment.declaredValue}
-                    onChange={e => setNewShipment({ ...newShipment, declaredValue: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Notas de Despacho:</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Instrucciones especiales para entrega"
-                  value={newShipment.notes}
-                  onChange={e => setNewShipment({ ...newShipment, notes: e.target.value })}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="btn btn-outline"
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-accent">
-                  Crear Solicitud de Envio
-                </button>
-              </div>
-            </form>
+          <div>
+            <h1 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#111827' }}>
+              RutaExpress
+            </h1>
+            <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
+              Portal de Identidad y Sesion
+            </p>
+          </div>
+          <div style={{
+            fontSize: '0.75rem',
+            padding: '0.25rem 0.6rem',
+            border: '1px solid #d1d5db',
+            borderRadius: '4px',
+            color: '#374151',
+            backgroundColor: '#ffffff'
+          }}>
+            BFF: {bffStatus}
           </div>
         </div>
-      )}
+
+        {/* Contenido centrado */}
+        <div style={{ padding: '1.5rem' }}>
+          
+          {/* Datos del Usuario y Rol */}
+          <div style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '4px',
+            padding: '1rem',
+            backgroundColor: '#f9fafb',
+            marginBottom: '1.25rem'
+          }}>
+            <div style={{ marginBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#6b7280', fontWeight: 600 }}>Usuario</span>
+              <strong style={{ fontSize: '0.9rem', color: '#111827' }}>{user?.name || user?.email}</strong>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#6b7280', fontWeight: 600 }}>Rol Asignado</span>
+              <span style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                padding: '0.2rem 0.6rem',
+                border: '1px solid #9ca3af',
+                borderRadius: '4px',
+                color: '#111827',
+                backgroundColor: '#ffffff'
+              }}>
+                {role || user?.role || 'Cliente'}
+              </span>
+            </div>
+          </div>
+
+          {/* Validacion y Creacion del Token */}
+          <div style={{
+            border: '1px solid #e5e7eb',
+            borderRadius: '4px',
+            padding: '0.85rem 1rem',
+            fontSize: '0.8rem',
+            lineHeight: 1.5,
+            color: '#374151',
+            marginBottom: '1.25rem',
+            backgroundColor: '#ffffff'
+          }}>
+            <div><strong>Creacion:</strong> Emitido por Microsoft Entra ID con firma criptografica asimetrica (RS256)</div>
+            <div><strong>Validacion:</strong> Verificado por el endpoint JWKS en el BFF de Spring Boot</div>
+          </div>
+
+          {/* Token Activo */}
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{
+              display: 'block',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: '#374151',
+              marginBottom: '0.35rem',
+              textTransform: 'uppercase'
+            }}>
+              Token Activo de Sesion (JWT):
+            </label>
+            <textarea
+              readOnly
+              value={token || 'No hay token generado'}
+              rows={6}
+              style={{
+                width: '100%',
+                backgroundColor: '#f9fafb',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                fontSize: '0.75rem',
+                fontFamily: 'monospace',
+                padding: '0.625rem',
+                color: '#111827',
+                resize: 'none',
+                boxSizing: 'border-box',
+                lineHeight: 1.4,
+                wordBreak: 'break-all'
+              }}
+              onClick={(e) => e.target.select()}
+            />
+          </div>
+
+          {/* Acciones */}
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={handleCopy}
+              style={{
+                flex: 1,
+                padding: '0.65rem 1rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                backgroundColor: '#111827',
+                border: '1px solid #111827',
+                color: '#ffffff',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              {copied ? 'Copiado' : 'Copiar Token'}
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '0.65rem 1.25rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                backgroundColor: '#ffffff',
+                border: '1px solid #d1d5db',
+                color: '#374151',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Cerrar Sesion
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
