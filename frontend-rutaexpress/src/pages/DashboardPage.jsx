@@ -45,17 +45,21 @@ export const DashboardPage = () => {
     setVerifying(true);
     setVerifyResult(null);
     try {
-      await bffApi.getShipments();
+      const responseData = await bffApi.getShipments();
       setVerifyResult({
         status: 'success',
-        message: 'HTTP 200 OK - Petición autorizada con éxito por el BFF'
+        code: 200,
+        endpoint: 'GET /api/bff/shipments',
+        data: responseData
       });
     } catch (err) {
-      const status = err.response?.status;
-      const msg = err.response?.data?.message || err.message;
+      const status = err.response?.status || 500;
+      const data = err.response?.data || { error: err.message };
       setVerifyResult({
         status: 'error',
-        message: status ? `HTTP ${status} - ${msg}` : `Error de conexión: ${msg}`
+        code: status,
+        endpoint: 'GET /api/bff/shipments',
+        data: data
       });
     } finally {
       setVerifying(false);
@@ -77,7 +81,7 @@ export const DashboardPage = () => {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '560px',
+        maxWidth: '580px',
         backgroundColor: '#ffffff',
         border: '1px solid #d1d5db',
         borderRadius: '6px',
@@ -145,21 +149,6 @@ export const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Validacion y Creacion del Token */}
-          <div style={{
-            border: '1px solid #e5e7eb',
-            borderRadius: '4px',
-            padding: '0.85rem 1rem',
-            fontSize: '0.8rem',
-            lineHeight: 1.5,
-            color: '#374151',
-            marginBottom: '1.25rem',
-            backgroundColor: '#ffffff'
-          }}>
-            <div><strong>Creacion:</strong> Emitido por Microsoft Entra ID con firma criptografica asimetrica (RS256)</div>
-            <div><strong>Validacion:</strong> Verificado por el endpoint JWKS en el BFF de Spring Boot</div>
-          </div>
-
           {/* Token Activo */}
           <div style={{ marginBottom: '1.25rem' }}>
             <label style={{
@@ -218,16 +207,45 @@ export const DashboardPage = () => {
             {verifyResult && (
               <div style={{
                 marginTop: '0.75rem',
-                padding: '0.75rem 1rem',
-                fontSize: '0.8rem',
+                border: '1px solid #374151',
                 borderRadius: '4px',
-                border: '1px solid #d1d5db',
-                backgroundColor: '#f9fafb',
-                color: '#111827',
-                lineHeight: 1.4
+                backgroundColor: '#111827',
+                color: '#f3f4f6',
+                overflow: 'hidden',
+                fontSize: '0.75rem',
+                fontFamily: 'Consolas, Monaco, "Courier New", monospace'
               }}>
-                <div><strong>Estado:</strong> {verifyResult.status === 'success' ? 'Autorizado' : 'Rechazado'}</div>
-                <div><strong>Respuesta:</strong> {verifyResult.message}</div>
+                <div style={{
+                  padding: '0.4rem 0.75rem',
+                  backgroundColor: '#1f2937',
+                  borderBottom: '1px solid #374151',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: '0.7rem',
+                  color: '#9ca3af'
+                }}>
+                  <span>Consola de Respuesta BFF</span>
+                  <span>HTTP {verifyResult.code}</span>
+                </div>
+                <div style={{ padding: '0.75rem' }}>
+                  <div style={{ color: '#9ca3af', marginBottom: '0.35rem' }}>
+                    &gt; {verifyResult.endpoint}
+                  </div>
+                  <pre style={{
+                    margin: 0,
+                    fontFamily: 'inherit',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.4,
+                    color: '#e5e7eb',
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all'
+                  }}>
+                    {JSON.stringify(verifyResult.data, null, 2)}
+                  </pre>
+                </div>
               </div>
             )}
           </div>
