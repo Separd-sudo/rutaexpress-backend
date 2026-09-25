@@ -1,30 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import bffApi from '../services/bffApi';
 
 export const Navbar = () => {
   const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [bffStatus, setBffStatus] = useState('Verificando');
-
-  useEffect(() => {
-    let isMounted = true;
-    const checkBff = async () => {
-      try {
-        const health = await bffApi.getHealth();
-        if (isMounted) setBffStatus(health?.status === 'UP' ? 'Conectado' : 'Degradado');
-      } catch (e) {
-        if (isMounted) setBffStatus('Desconectado');
-      }
-    };
-    checkBff();
-    const interval = setInterval(checkBff, 30000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -39,9 +19,6 @@ export const Navbar = () => {
         </Link>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>
-            BFF: {bffStatus}
-          </span>
           {isAuthenticated && (
             <button
               onClick={handleLogout}

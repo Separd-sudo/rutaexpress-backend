@@ -6,32 +6,9 @@ import bffApi from '../services/bffApi';
 export const DashboardPage = () => {
   const { user, role, token, logout } = useAuth();
   const navigate = useNavigate();
-  const [bffStatus, setBffStatus] = useState('Verificando');
   const [copied, setCopied] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    const checkBff = async () => {
-      try {
-        const health = await bffApi.getHealth();
-        if (isMounted) {
-          setBffStatus(health?.status === 'UP' ? 'Conectado (UP)' : 'Degradado');
-        }
-      } catch (e) {
-        if (isMounted) {
-          setBffStatus('Desconectado');
-        }
-      }
-    };
-    checkBff();
-    const interval = setInterval(checkBff, 15000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
 
   const handleCopy = () => {
     if (token) {
@@ -156,16 +133,6 @@ export const DashboardPage = () => {
             <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
               Portal de Identidad y Sesion
             </p>
-          </div>
-          <div style={{
-            fontSize: '0.75rem',
-            padding: '0.25rem 0.6rem',
-            border: '1px solid #d1d5db',
-            borderRadius: '4px',
-            color: '#374151',
-            backgroundColor: '#ffffff'
-          }}>
-            BFF: {bffStatus}
           </div>
         </div>
 
