@@ -73,4 +73,11 @@ public class CatalogController {
             @RequestParam(name = "amount", defaultValue = "1") int amount) {
         return ResponseEntity.ok(catalogService.releaseCapacity(id, amount));
     }
+
+    @DeleteMapping("/services/{id}")
+    @Operation(summary = "Dar de baja servicio de catalogo (Admin)")
+    public ResponseEntity<Void> deleteService(@PathVariable("id") Long id) {
+        catalogService.deleteService(id);
+        return ResponseEntity.noContent().build();
+    }
 }

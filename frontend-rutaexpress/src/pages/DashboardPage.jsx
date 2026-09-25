@@ -80,6 +80,26 @@ export const DashboardPage = () => {
     }
   };
 
+  // Accion DELETE: Eliminar o cancelar envio (Cliente y Admin)
+  const handleDeleteShipment = async (id, tracking) => {
+    if (!window.confirm(`¿Está seguro de eliminar el envío ${tracking}? Esta acción ejecutará una petición HTTP DELETE hacia el BFF.`)) {
+      return;
+    }
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await bffApi.deleteShipment(id);
+      setSuccessMsg(`Envío ${tracking} eliminado exitosamente (HTTP DELETE procesado por el BFF).`);
+      if (selectedTrace?.shipment?.id === id) {
+        setSelectedTrace(null);
+      }
+      await loadData();
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error al eliminar el envío';
+      setError(msg);
+    }
+  };
+
   // Ver agregacion completa y timeline de auditoria
   const handleViewTrace = async (shipmentId) => {
     setLoadingTrace(true);
@@ -367,6 +387,18 @@ export const DashboardPage = () => {
                           >
                             Timeline
                           </button>
+
+                          {/* Accion DELETE para Cliente y Admin (envios en CREADO o CANCELADO) */}
+                          {(role === 'Cliente' || role === 'Admin') && (s.status === 'CREADO' || s.status === 'CANCELADO') && (
+                            <button
+                              onClick={() => handleDeleteShipment(s.id, s.trackingNumber)}
+                              className="btn btn-outline"
+                              style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: '#fca5a5', color: '#dc2626' }}
+                              title="Eliminar registro mediante HTTP DELETE hacia el BFF"
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

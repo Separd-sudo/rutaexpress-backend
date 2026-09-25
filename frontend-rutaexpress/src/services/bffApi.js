@@ -72,6 +72,16 @@ export const bffApi = {
     return res.data;
   },
 
+  deleteShipment: async (id) => {
+    const res = await bffClient.delete(`/api/bff/shipments/${id}`);
+    return res.data;
+  },
+
+  deleteCatalogService: async (id) => {
+    const res = await bffClient.delete(`/api/bff/catalog/services/${id}`);
+    return res.data;
+  },
+
   // Endpoint de agregacion optimizado
   getFullTrace: async (id) => {
     const res = await bffClient.get(`/api/bff/shipments/${id}/full-trace`);

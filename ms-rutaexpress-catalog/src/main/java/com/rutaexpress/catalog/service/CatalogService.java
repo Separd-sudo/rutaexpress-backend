@@ -156,6 +156,16 @@ public class CatalogService {
                 .build();
     }
 
+    @Transactional
+    public void deleteService(Long id) {
+        ServiceOffering service = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con ID: " + id));
+
+        service.setActive(false);
+        repository.save(service);
+        log.info("Servicio ID {} dado de baja", id);
+    }
+
     private ServiceOfferingResponse mapToResponse(ServiceOffering entity) {
         return ServiceOfferingResponse.builder()
                 .id(entity.getId())
