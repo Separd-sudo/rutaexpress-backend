@@ -61,37 +61,33 @@ export const Navbar = () => {
             </div>
 
             {isAuthenticated ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                {/* Boton para abrir el Inspector de Token JWT */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{user?.name}</span>
+                  <span className="badge badge-creado" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}>
+                    {role}
+                  </span>
+                </div>
+
+                {/* Boton para abrir la mini pantalla con el Token Activo */}
                 <button
                   onClick={() => setIsTokenModalOpen(true)}
+                  className="btn btn-outline"
                   style={{
-                    backgroundColor: '#1e293b',
                     color: '#38bdf8',
-                    border: '1px solid #38bdf8',
-                    borderRadius: '0.375rem',
-                    padding: '0.375rem 0.75rem',
+                    borderColor: '#0284c7',
+                    padding: '0.35rem 0.65rem',
                     fontSize: '0.75rem',
                     fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
                     cursor: 'pointer'
                   }}
-                  title="Inspeccionar Token JWT y claims recibidos de Azure o Cognito"
+                  title="Ver token activo generado para la sesión"
                 >
-                  <span>🔑</span>
-                  <span>Inspector JWT</span>
+                  Token Activo
                 </button>
 
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{user?.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                    Rol: <strong style={{ color: '#38bdf8' }}>{role}</strong>
-                  </div>
-                </div>
-                <button onClick={handleLogout} className="btn btn-outline" style={{ color: '#ffffff', borderColor: '#334155', padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>
-                  Cerrar sesión
+                <button onClick={handleLogout} className="btn btn-outline" style={{ color: '#94a3b8', borderColor: '#334155', padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}>
+                  Salir
                 </button>
               </div>
             ) : (

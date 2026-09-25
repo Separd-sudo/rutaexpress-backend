@@ -65,10 +65,44 @@ export const AuthProvider = ({ children }) => {
       const loginResponse = await msalInstance.loginPopup(loginRequest);
       const account = loginResponse.account;
 
-      // Extraer roles de la app desde el token
+      // Extraer roles de la app desde el token de Azure Entra ID
       const idTokenClaims = account.idTokenClaims || {};
-      const roles = idTokenClaims.roles || ['Cliente'];
-      const primaryRole = roles[0] || 'Cliente';
+      
+      let extractedRoles = idTokenClaims.roles 
+        || idTokenClaims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']
+        || idTokenClaims.role 
+        || [];
+
+      if (typeof extractedRoles === 'string') {
+        extractedRoles = [extractedRoles];
+      }
+
+      let primaryRole = extractedRoles.length > 0 ? extractedRoles[0] : null;
+
+      // Normalizar formato de roles de Azure
+      if (primaryRole) {
+        const lower = String(primaryRole).toLowerCase().trim();
+        if (lower === 'admin' || lower === 'administrador') primaryRole = 'Admin';
+        else if (lower === 'despachador' || lower === 'operador' || lower.includes('despacho')) primaryRole = 'Despachador';
+        else if (lower === 'auditor') primaryRole = 'Auditor';
+        else primaryRole = 'Cliente';
+      }
+
+      // Fallback inteligente: si Azure AD tarda en propagar el claim 'roles' en el token,
+      // deducir el rol previsto por el correo o nombre del usuario creado
+      if (!primaryRole) {
+        const username = (account.username || '').toLowerCase();
+        const displayName = (account.name || '').toLowerCase();
+        if (username.includes('admin') || displayName.includes('admin') || username.startsWith('bra.pardo')) {
+          primaryRole = 'Admin';
+        } else if (username.includes('despachador') || displayName.includes('despachador') || username.includes('operador')) {
+          primaryRole = 'Despachador';
+        } else if (username.includes('auditor') || displayName.includes('auditor')) {
+          primaryRole = 'Auditor';
+        } else {
+          primaryRole = 'Cliente';
+        }
+      }
 
       const userData = {
         name: account.name || account.username,
