@@ -72,4 +72,13 @@ public class BffCatalogController {
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
     }
+
+    @DeleteMapping("/services/{id}")
+    @Operation(summary = "Eliminar o dar de baja servicio del catalogo (Admin)")
+    public ResponseEntity<Void> deleteService(@PathVariable("id") Long id) {
+        return catalogClient.delete()
+                .uri("/api/catalog/services/{id}", id)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }

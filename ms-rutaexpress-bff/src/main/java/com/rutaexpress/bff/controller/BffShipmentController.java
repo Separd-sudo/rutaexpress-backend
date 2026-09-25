@@ -99,4 +99,13 @@ public class BffShipmentController {
     public ResponseEntity<FullShipmentTraceResponse> getFullTrace(@PathVariable("id") Long id) {
         return ResponseEntity.ok(aggregationService.getFullTrace(id));
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Eliminar o cancelar envio (BFF)", description = "Redirige la eliminacion al microservicio de shipments")
+    public ResponseEntity<Void> deleteShipment(@PathVariable("id") Long id) {
+        return shipmentsClient.delete()
+                .uri("/api/shipments/{id}", id)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }

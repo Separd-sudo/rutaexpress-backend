@@ -60,4 +60,11 @@ public class ShipmentController {
             @RequestParam(name = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         return ResponseEntity.ok(shipmentService.getShipments(status, from, to));
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Eliminar o cancelar un envio", description = "Elimina envios en estado CREADO o CANCELADO")
+    public ResponseEntity<Void> deleteShipment(@PathVariable("id") Long id) {
+        shipmentService.deleteShipment(id);
+        return ResponseEntity.noContent().build();
+    }
 }

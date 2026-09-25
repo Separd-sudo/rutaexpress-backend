@@ -169,6 +169,30 @@ public class ShipmentService {
         return mapToResponse(updated);
     }
 
+    @Transactional
+    public void deleteShipment(Long id) {
+        Shipment shipment = repository.findById(id)
+                .orElseThrow(() -> new ShipmentNotFoundException("Envío no encontrado con ID: " + id));
+
+        if (shipment.getStatus() != ShipmentStatus.CREADO && shipment.getStatus() != ShipmentStatus.CANCELADO) {
+            throw new InvalidStateTransitionException("Solo se pueden eliminar envíos en estado CREADO o CANCELADO.");
+        }
+
+        auditClient.sendAuditEvent(
+                shipment.getId(),
+                shipment.getTrackingNumber(),
+                "ENVIO_ELIMINADO",
+                shipment.getStatus().name(),
+                "ELIMINADO",
+                "Usuario",
+                "Cliente",
+                "Envío eliminado del registro logístico"
+        );
+
+        repository.delete(shipment);
+        log.info("Envío {} eliminado exitosamente", shipment.getTrackingNumber());
+    }
+
     private String generateTrackingNumber() {
         String datePart = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         int randomPart = 1000 + new Random().nextInt(9000);
