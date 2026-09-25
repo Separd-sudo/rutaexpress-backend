@@ -153,34 +153,23 @@ export const DashboardPage = () => {
 
       {/* TABLA PRINCIPAL DE ENVIOS (CENTRADA EN EL MEDIO) */}
       <section className="card" style={{ border: '1px solid #e5e7eb', boxShadow: 'none' }}>
-        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.75rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: '#111827', margin: 0 }}>
-              {role === 'Cliente' ? 'Mis Envios' : 'Envios Registrados'}
-            </h2>
-            <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-              Total: {shipments.length} registro(s)
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {(role === 'Cliente' || role === 'Despachador' || role === 'Admin') && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="btn btn-accent"
-                style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', backgroundColor: '#111827', borderColor: '#111827', color: '#ffffff' }}
-              >
-                Nuevo Envio
-              </button>
-            )}
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.75rem', gap: '0.5rem' }}>
+          {(role === 'Cliente' || role === 'Despachador' || role === 'Admin') && (
             <button
-              onClick={loadData}
-              className="btn btn-outline"
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#374151', borderColor: '#d1d5db' }}
+              onClick={() => setShowCreateModal(true)}
+              className="btn btn-accent"
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', backgroundColor: '#111827', borderColor: '#111827', color: '#ffffff' }}
             >
-              Actualizar
+              Nuevo Envio
             </button>
-          </div>
+          )}
+          <button
+            onClick={loadData}
+            className="btn btn-outline"
+            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', color: '#374151', borderColor: '#d1d5db' }}
+          >
+            Actualizar
+          </button>
         </div>
 
         {loading ? (
