@@ -8,6 +8,8 @@ export const DashboardPage = () => {
   const navigate = useNavigate();
   const [bffStatus, setBffStatus] = useState('Verificando');
   const [copied, setCopied] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -36,6 +38,27 @@ export const DashboardPage = () => {
       navigator.clipboard.writeText(token);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleVerifyToken = async () => {
+    setVerifying(true);
+    setVerifyResult(null);
+    try {
+      await bffApi.getShipments();
+      setVerifyResult({
+        status: 'success',
+        message: 'HTTP 200 OK - Petición autorizada con éxito por el BFF'
+      });
+    } catch (err) {
+      const status = err.response?.status;
+      const msg = err.response?.data?.message || err.message;
+      setVerifyResult({
+        status: 'error',
+        message: status ? `HTTP ${status} - ${msg}` : `Error de conexión: ${msg}`
+      });
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -138,7 +161,7 @@ export const DashboardPage = () => {
           </div>
 
           {/* Token Activo */}
-          <div style={{ marginBottom: '1.5rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
             <label style={{
               display: 'block',
               fontSize: '0.75rem',
@@ -152,7 +175,7 @@ export const DashboardPage = () => {
             <textarea
               readOnly
               value={token || 'No hay token generado'}
-              rows={6}
+              rows={5}
               style={{
                 width: '100%',
                 backgroundColor: '#f9fafb',
@@ -171,7 +194,45 @@ export const DashboardPage = () => {
             />
           </div>
 
-          {/* Acciones */}
+          {/* Accion de Verificacion con BFF */}
+          <div style={{ marginBottom: '1.25rem' }}>
+            <button
+              type="button"
+              onClick={handleVerifyToken}
+              disabled={verifying || !token}
+              style={{
+                width: '100%',
+                padding: '0.65rem 1rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                backgroundColor: '#ffffff',
+                border: '1px solid #111827',
+                color: '#111827',
+                borderRadius: '4px',
+                cursor: verifying ? 'wait' : 'pointer'
+              }}
+            >
+              {verifying ? 'Verificando con BFF...' : 'Verificar Token con BFF'}
+            </button>
+
+            {verifyResult && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.75rem 1rem',
+                fontSize: '0.8rem',
+                borderRadius: '4px',
+                border: '1px solid #d1d5db',
+                backgroundColor: '#f9fafb',
+                color: '#111827',
+                lineHeight: 1.4
+              }}>
+                <div><strong>Estado:</strong> {verifyResult.status === 'success' ? 'Autorizado' : 'Rechazado'}</div>
+                <div><strong>Respuesta:</strong> {verifyResult.message}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Acciones Principales */}
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button
               onClick={handleCopy}
