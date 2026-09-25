@@ -1,6 +1,6 @@
-# Documentación Técnica Integral: Arquitectura, APIs, Identidad y Resolución de Incidencias
+# Documentación Técnica Integral: Arquitectura, APIs, Identidad y Configuración en Microsoft Azure
 
-Este documento detalla el funcionamiento técnico, arquitectónico y operativo del sistema **RutaExpress**, explicando cada uno de los componentes implementados, la federación de identidades multicloud (Microsoft Entra ID y AWS Cognito), el funcionamiento de las APIs y la resolución paso a paso de las incidencias técnicas planteadas.
+Este documento detalla el funcionamiento técnico, arquitectónico y operativo del sistema **RutaExpress**, explicando cada uno de los componentes implementados, la federación de identidades multicloud (Microsoft Entra ID y AWS Cognito), el funcionamiento de las APIs y todos los pasos de configuración realizados en Microsoft Azure.
 
 ---
 
@@ -9,11 +9,11 @@ Este documento detalla el funcionamiento técnico, arquitectónico y operativo d
 ### 1.1 ¿Qué es un Tenant (Inquilino) y para qué sirve?
 Un **Tenant** (o Inquilino) en **Microsoft Entra ID (Azure AD)** representa una instancia dedicada, aislada y segura de la nube de identidad de Microsoft que pertenece a una organización o empresa específica.
 
-- **Identificador de Directorio (Directory ID / Tenant ID)**: En nuestro proyecto corresponde a `b7bd70fc-34e6-4f0c-80cc-e0909f96d096`. Este UUID garantiza que las solicitudes de autenticación se dirijan estrictamente al directorio de nuestra organización y no a otro.
+- **Identificador de Directorio (Directory ID / Tenant ID)**: En nuestro proyecto corresponde a `b7bd70fc-34e6-4f0c-80cc-e0909f96d096`. Este identificador único garantiza que las solicitudes de autenticación se dirijan estrictamente al directorio de nuestra organización.
 - **Función principal**:
-  1. **Almacenamiento de identidades**: Aloja a los usuarios corporativos, sus contraseñas, métodos de autenticación multifactor (MFA) y perfiles.
+  1. **Almacenamiento de identidades**: Aloja a los usuarios corporativos, sus credenciales, métodos de autenticación multifactor (MFA) y perfiles.
   2. **Gobierno y Aislamiento**: Ningún usuario externo de otro tenant puede acceder a los recursos salvo que sea expresamente invitado como usuario externo o federado.
-  3. **Gestión de Roles Empresariales (App Roles)**: Dentro del Tenant, la aplicación `RutaExpress-Frontend` define roles institucionales (`Admin`, `Cliente`, `Despachador`, `Auditor`). Cuando un usuario inicia sesión en ese Tenant, Entra ID inyecta estos roles directamente en el token emitido.
+  3. **Gestión de Roles Empresariales (App Roles)**: Dentro del Tenant, la aplicación define roles institucionales (`Admin`, `Cliente`, `Despachador`, `Auditor`). Cuando un usuario inicia sesión en ese Tenant, Entra ID inyecta estos roles directamente en el token emitido.
 
 ### 1.2 ¿Qué es un User Pool de AWS Cognito y para qué sirve?
 Un **User Pool** de **Amazon Web Services (AWS)** es un directorio de identidades administrado dentro del ecosistema de AWS.
@@ -21,8 +21,8 @@ Un **User Pool** de **Amazon Web Services (AWS)** es un directorio de identidade
 - **Identificador en el proyecto**: `us-east-1_AkiImfjh5`.
 - **Función principal**:
   1. **Directorio y Emisión nativa de tokens**: Permite registrar y autenticar usuarios directamente en AWS emitiendo tokens estándar OIDC (ID Token, Access Token, Refresh Token).
-  2. **Broker de Federación de Identidades**: Actúa como puente entre Microsoft Entra ID y los recursos de AWS. Permite que usuarios alojados en el Tenant de Azure inicien sesión en AWS sin necesidad de duplicar contraseñas, intercambiando afirmaciones de identidad a través de protocolos seguros (OIDC / SAML 2.0).
-  3. **Aseguramiento de Recursos en AWS**: Permite que herramientas perimetrales como **AWS API Gateway** validen tokens de forma nativa sin tener que consultar a un servidor externo cada vez.
+  2. **Broker de Federación de Identidades**: Actúa como puente entre Microsoft Entra ID y los recursos de AWS. Permite que usuarios alojados en el Tenant de Azure inicien sesión en AWS sin necesidad de duplicar credenciales, intercambiando afirmaciones de identidad a través de protocolos seguros (OIDC / SAML 2.0).
+  3. **Aseguramiento Perimetral en AWS**: Permite que componentes como **AWS API Gateway** validen tokens de forma nativa sin tener que consultar a un servidor externo cada vez.
 
 ### 1.3 Diferencia y Relación entre Tenant y User Pool en RutaExpress
 
@@ -35,9 +35,71 @@ Un **User Pool** de **Amazon Web Services (AWS)** es un directorio de identidade
 
 ---
 
-## 2. Arquitectura de APIs y Microservicios
+## 2. Configuración Paso a Paso Realizada en Microsoft Azure (Entra ID)
 
-El backend de RutaExpress utiliza el patrón **BFF (Backend-For-Frontend)** para comunicar la aplicación cliente (React) con un ecosistema de microservicios internos desacoplados.
+Para habilitar la autenticación corporativa, la emisión de roles y la federación con AWS, se realizaron los siguientes pasos en **Microsoft Entra ID (portal.azure.com)**:
+
+### Paso 1: Creación y Acceso al Tenant
+1. Se configuró el directorio activo corporativo bajo el identificador de Tenant:
+   - **Directory (tenant) ID**: `b7bd70fc-34e6-4f0c-80cc-e0909f96d096`.
+2. Se crearon los usuarios de prueba con sus cuentas institucionales para representar los distintos roles de la empresa.
+
+### Paso 2: Registro de la Aplicación (App Registration)
+1. En Microsoft Entra ID, se navegó a **App registrations** > **New registration**.
+2. Se asignaron los siguientes parámetros:
+   - **Nombre**: `cognito federation` / `RutaExpress-Frontend`.
+   - **Tipos de cuenta admitidos**: *Accounts in this organizational directory only* (Inquilino único / Single tenant).
+3. Tras crear el registro, se obtuvo el identificador de cliente:
+   - **Application (client) ID**: `1a9272d9-8271-48d5-a823-22b94af30424`.
+
+### Paso 3: Configuración de Autenticación y Plataformas
+En el menú **Authentication**:
+1. **Plataforma SPA (Single-Page Application)** para el Frontend React:
+   - Se agregaron las URIs de redirección locales:
+     - `http://localhost:5173`
+     - `http://localhost:5173/`
+   - Se habilitó la protección mediante **PKCE** (Proof Key for Code Exchange) según el estándar RFC 7636.
+2. **Concesión implícita y flujos híbridos**:
+   - Se marcaron las casillas para **Access tokens** e **ID tokens**, permitiendo la recepción de aserciones de identidad por parte de librerías cliente (MSAL).
+3. **Plataforma Web (Para integración con AWS Cognito)**:
+   - Se agregó la plataforma Web con la URI de retorno del User Pool de AWS:
+     `https://us-east-1akiimfjh5.auth.us-east-1.amazoncognito.com/oauth2/idpresponse`
+
+### Paso 4: Generación de Certificados y Secretos (Certificates & Secrets)
+1. En el menú **Certificates & secrets** > pestaña **Client secrets**, se creó un nuevo secreto de cliente (*New client secret*).
+2. Se registró el valor del secreto para configurarlo en el proveedor OIDC de AWS Cognito, permitiendo el canal de comunicación seguro servidor-a-servidor.
+
+### Paso 5: Definición de Roles de Aplicación (App Roles)
+En el menú **App roles**, se crearon los cuatro perfiles de seguridad requeridos por la solución:
+- **`Admin`**: Administrador del sistema con control total sobre el catálogo de servicios, tarifas y eliminación de registros.
+- **`Cliente`**: Usuario final con facultad para cotizar, crear y consultar sus propios envíos.
+- **`Despachador`**: Operador logístico autorizado para actualizar los estados de los paquetes en ruta (`EN_TRANSITO`, `ENTREGADO`).
+- **`Auditor`**: Inspector de seguridad con acceso exclusivo de lectura a la línea de tiempo inmutable y eventos de auditoría.
+
+*Cada rol se configuró para asignarse a "Users/Groups" con su nombre exacto en el valor del claim.*
+
+### Paso 6: Asignación de Roles a Usuarios Corporativos
+1. Se accedió a **Enterprise applications** > `cognito federation` (o la app correspondiente).
+2. En el menú **Users and groups**, se seleccionaron los usuarios del directorio y se les asoció su rol específico (`Admin`, `Cliente`, etc.).
+3. Gracias a esto, cuando el usuario inicia sesión, Azure Entra ID inyecta automáticamente el claim `"roles": ["Admin"]` en el token JWT.
+
+### Paso 7: Permisos de API (API Permissions)
+En el menú **API permissions**, se concedieron los permisos delegados de Microsoft Graph:
+- `openid`: Permite la emisión del ID Token y el uso del estándar OpenID Connect.
+- `profile`: Otorga acceso al nombre, apellidos y datos de cuenta del usuario.
+- `email`: Permite extraer la dirección de correo institucional corporativo.
+- `User.Read`: Permite la lectura del perfil básico del usuario autenticado.
+- **Grant admin consent**: Se ejecutó el consentimiento de administrador para asegurar que ningún usuario reciba pantallas de bloqueo de consentimiento en su primer acceso.
+
+### Paso 8: Exposición de API y Configuración de Manifiesto
+1. En **Expose an API**, se configuró el URI del identificador de la aplicación: `api://1a9272d9-8271-48d5-a823-22b94af30424`.
+2. En el **Manifest**, se verificó que `accessTokenAcceptedVersion` estuviera fijado en `2`, garantizando tokens en formato JWT v2.0 estándar.
+
+---
+
+## 3. Arquitectura de APIs y Microservicios
+
+El backend de RutaExpress utiliza el patrón **BFF (Backend-For-Frontend)** para comunicar la aplicación cliente (React) con los microservicios internos desacoplados.
 
 ```
                     ┌─────────────────────────┐
@@ -60,7 +122,7 @@ El backend de RutaExpress utiliza el patrón **BFF (Backend-For-Frontend)** para
 └──────────────────┘   └──────────────────┘   └──────────────────┘
 ```
 
-### 2.1 Microservicio BFF (`ms-rutaexpress-bff` - Puerto 8080)
+### 3.1 Microservicio BFF (`ms-rutaexpress-bff` - Puerto 8080)
 - **Propósito**: Es el único punto de contacto público hacia el backend. Desacopla al frontend de la topología interna de la red de microservicios.
 - **Responsabilidades clave**:
   1. **Seguridad Centralizada**: Valida la firma del token JWT recibido mediante Spring Security antes de permitir el paso hacia cualquier microservicio.
@@ -68,7 +130,7 @@ El backend de RutaExpress utiliza el patrón **BFF (Backend-For-Frontend)** para
   3. **Enrutamiento y Resiliencia**: Redirige llamadas a `ms-shipments`, `ms-catalog` y `ms-audit` controlando tiempos de espera (*timeouts*), excepciones y formatos unificados.
   4. **Exposición de Salud**: Expone el endpoint `/api/bff/health` que reporta el estado operativo del ecosistema.
 
-### 2.2 Microservicio de Envíos (`ms-rutaexpress-shipments` - Puerto 8081)
+### 3.2 Microservicio de Envíos (`ms-rutaexpress-shipments` - Puerto 8081)
 - **Propósito**: Gestiona el ciclo de vida operativo de los paquetes y encomiendas.
 - **Funcionalidades**:
   - Creación y registro de envíos con cálculo de peso volumétrico.
@@ -76,13 +138,13 @@ El backend de RutaExpress utiliza el patrón **BFF (Backend-For-Frontend)** para
   - Máquina de estados: `PENDIENTE` -> `EN_TRANSITO` -> `ENTREGADO` (o `CANCELADO`).
   - Endpoint de cancelación y eliminación física de registros (`DELETE /api/shipments/{id}`).
 
-### 2.3 Microservicio de Catálogo (`ms-rutaexpress-catalog` - Puerto 8082)
+### 3.3 Microservicio de Catálogo (`ms-rutaexpress-catalog` - Puerto 8082)
 - **Propósito**: Administra la oferta comercial, tarifas por distancia/peso y tipos de servicio logístico.
 - **Funcionalidades**:
   - Consulta de servicios disponibles (`ESTANDAR`, `EXPRESS`, `INTERNACIONAL`).
   - Gestión restringida: Solo usuarios con rol `Admin` pueden crear, actualizar o dar de baja (`DELETE /api/catalog/services/{id}`) servicios del catálogo.
 
-### 2.4 Microservicio de Auditoría (`ms-rutaexpress-audit` - Puerto 8083)
+### 3.4 Microservicio de Auditoría (`ms-rutaexpress-audit` - Puerto 8083)
 - **Propósito**: Proporciona registro inmutable y trazabilidad de todas las operaciones realizadas en la plataforma.
 - **Funcionalidades**:
   - Registro de eventos (`ShipmentEventLog`): Registra qué usuario, con qué rol, en qué fecha/hora y qué acción ejecutó (ej: cambio de estado de envío, creación o eliminación).
@@ -90,9 +152,9 @@ El backend de RutaExpress utiliza el patrón **BFF (Backend-For-Frontend)** para
 
 ---
 
-## 3. Seguridad de Tokens: Creación, Firma Asimétrica y Validación JWKS
+## 4. Seguridad de Tokens: Creación, Firma Asimétrica y Validación JWKS
 
-### 3.1 Estructura del Token JWT
+### 4.1 Estructura del Token JWT
 Un token JWT (*JSON Web Token*) consta de tres partes codificadas en Base64Url y separadas por puntos (`.`):
 
 1. **Header**: Contiene el tipo de token y el algoritmo de firma criptográfica:
@@ -114,11 +176,11 @@ Un token JWT (*JSON Web Token*) consta de tres partes codificadas en Base64Url y
 
 3. **Signature (Firma)**: Es el resultado de aplicar la clave privada del proveedor de identidad sobre la cabecera y el payload.
 
-### 3.2 ¿Cómo y dónde se crea el Token?
+### 4.2 ¿Cómo y dónde se crea el Token?
 El token **no es creado por nuestro backend ni por el frontend**. 
-Se crea en los servidores de **Microsoft Entra ID** (o AWS Cognito) tras verificar las credenciales del usuario (o el flujo PKCE). Entra ID toma los datos del usuario, sus roles corporativos, y firma matemáticamente el token con su **clave privada secreta**, la cual nunca sale de los centros de datos de Microsoft.
+Se crea en los servidores de **Microsoft Entra ID** tras verificar las credenciales del usuario mediante el flujo PKCE. Entra ID toma los datos del usuario, sus roles corporativos, y firma matemáticamente el token con su **clave privada secreta**, la cual nunca sale de los centros de datos de Microsoft.
 
-### 3.3 ¿Qué es el endpoint JWKS y dónde está en el proyecto?
+### 4.3 ¿Qué es el endpoint JWKS y dónde está en el proyecto?
 **JWKS (JSON Web Key Set)** es un endpoint público estándar expuesto por el proveedor de identidad que publica una lista de **claves públicas criptográficas**.
 
 #### Ubicación de la URL en la Configuración
@@ -130,12 +192,13 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          issuer-uri: ${COGNITO_ISSUER_URI:${AZURE_JWT_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AkiImfjh5}}
           jwk-set-uri: ${COGNITO_JWK_SET_URI:${AZURE_JWK_SET_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AkiImfjh5/.well-known/jwks.json}}
 ```
 - Para Azure Entra ID, la URL estándar es:
-  `https://login.microsoftonline.com/{tenantId}/discovery/v2.0/keys`
+  `https://login.microsoftonline.com/b7bd70fc-34e6-4f0c-80cc-e0909f96d096/discovery/v2.0/keys`
 - Para AWS Cognito, la URL estándar es:
-  `https://cognito-idp.us-east-1.amazonaws.com/{userPoolId}/.well-known/jwks.json`
+  `https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AkiImfjh5/.well-known/jwks.json`
 
 #### Ubicación del Bean en el Código Java
 En el archivo `ms-rutaexpress-bff/src/main/java/com/rutaexpress/bff/config/SecurityConfig.java`:
@@ -160,55 +223,13 @@ public JwtDecoder jwtCognitoDecoder() {
    - Que no haya expirado (`exp > now()`).
 5. **No se comparte ninguna contraseña o secreto entre el servidor y el proveedor**, garantizando máxima seguridad de estándar industrial.
 
-### 3.4 Conversión de Roles (`JwtRoleConverter`)
+### 4.4 Conversión de Roles (`JwtRoleConverter`)
 En `ms-rutaexpress-bff/src/main/java/com/rutaexpress/bff/config/JwtRoleConverter.java`, el sistema extrae el listado del claim `roles` del token y le agrega el prefijo `ROLE_` requerido por Spring Security (`ROLE_Admin`, `ROLE_Cliente`, etc.). Esto permite proteger los endpoints con reglas granulares como:
 
 ```java
 .requestMatchers(HttpMethod.DELETE, "/api/bff/catalog/**").hasRole("Admin")
 .requestMatchers(HttpMethod.PUT, "/api/bff/shipments/*/status").hasAnyRole("Despachador", "Admin")
 ```
-
----
-
-## 4. Análisis y Explicación de las Incidencias Técnicas
-
-### 4.1 Incidencia 1: Error de Política COOP y `window.closed` en Navegador
-**Mensaje observado en la consola de depuración:**
-```
-Cross-Origin-Opener-Policy policy would block the window.closed call.
-(anonymous) @ @azure_msal-browser.js:12495
-```
-
-#### Causa Raíz
-1. **Mecanismo de Login con Ventana Emergente (Popup)**:
-   Cuando el frontend utiliza `@azure/msal-browser` con el método `loginPopup()`, la ventana principal de la aplicación React abre una ventana secundaria emergente hacia los servidores de inicio de sesión de Microsoft (`login.microsoftonline.com`).
-2. **Relación de Ventanas (`window.opener`)**:
-   Para que el flujo funcione, la ventana emergente debe poder comunicarse de vuelta con la ventana original (`window.opener.postMessage()`) y la ventana original debe monitorear periódicamente si la ventana emergente ya se cerró (`popup.closed`).
-3. **Restricción de Seguridad COOP (Cross-Origin-Opener-Policy)**:
-   Los navegadores con escudos estrictos de privacidad (como Brave Browser o configuraciones con cabeceras `Cross-Origin-Opener-Policy: same-origin`) aíslan los contextos de navegación de diferentes orígenes.
-   Al navegar a `login.microsoftonline.com`, el navegador corta el enlace entre la ventana principal y la ventana emergente por protección contra ataques de tipo *Spectre* o *XS-Leaks*. 
-   Al quedar roto el enlace, cuando la librería MSAL intenta verificar si la ventana secundaria terminó su labor invocando `popup.closed`, el motor del navegador bloquea la llamada emitiendo la advertencia de COOP.
-
----
-
-### 4.2 Incidencia 2: `BrowserAuthError: user_cancelled: User cancelled the flow`
-**Mensaje observado:**
-```
-Error en autenticacion Azure AD: BrowserAuthError: user_cancelled: User cancelled the flow.
-    at createBrowserAuthError (@azure_msal-browser.js:7978:10)
-    at @azure_msal-browser.js:12498:18
-```
-
-#### ¿Por qué ocurrió este error?
-1. La librería `@azure/msal-browser` mantiene un temporizador y un sondeo activo esperando que la ventana emergente de Microsoft devuelva el código de autorización o el token.
-2. Al estar bloqueada la comunicación entre ventanas por los escudos del navegador (COOP), la ventana principal no puede recibir el mensaje de finalización.
-3. Si la ventana se cierra prematuramente, pierde el foco o el temporizador de MSAL detecta que el canal de comunicación con el popup se ha desconectado, la librería asume por defecto que el usuario canceló manualmente el inicio de sesión cerrando la ventana.
-
-#### ¿Por qué la aplicación volvía a cargar el inicio dentro de la propia ventana emergente?
-- En la configuración de Azure Portal, la URL de redirección configurada para la SPA es `http://localhost:5173/`.
-- Al culminar la autenticación con éxito, Microsoft redirige la ventana emergente de vuelta a `http://localhost:5173/#code=...`.
-- Si el script de MSAL en la ventana principal ya no tiene el control sobre la ventana secundaria debido al bloqueo del navegador, la ventana emergente no se autodestruye: en su lugar, se comporta como una pestaña normal de navegación y procesa la URL cargando toda la aplicación React de nuevo en miniatura dentro del marco emergente.
-- **Solución comprobada**: Al utilizar navegadores estándar como Google Chrome o Microsoft Edge, las políticas de apertura entre orígenes respetan la API de popups para dominios de confianza, permitiendo que MSAL reciba el token, cierre la ventana emergente de forma inmediata y actualice la sesión en la ventana principal sin interrupciones.
 
 ---
 
