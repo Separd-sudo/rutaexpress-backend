@@ -16,6 +16,7 @@
         <module>ms-rutaexpress-audit</module>
         <module>ms-rutaexpress-shipments</module>
         <module>ms-rutaexpress-bff</module>
+        <module>ms-rutaexpress-rabbitmq</module>
     </modules>
 
     <properties>
