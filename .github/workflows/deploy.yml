@@ -82,15 +82,15 @@ jobs:
           tags: ghcr.io/separd-sudo/ms-rutaexpress-bff:latest
 
       - name: Deploy to EC2 via Native SSH
-        if: ${{ vars.TARGET_HOST_IP != '' || secrets.TARGET_HOST_IP != '' }}
+        if: ${{ vars.TARGET_HOST_IP != '' }}
         env:
-          EC2_IP: ${{ vars.TARGET_HOST_IP || secrets.TARGET_HOST_IP }}
+          EC2_IP: ${{ vars.TARGET_HOST_IP }}
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR: ${{ github.actor }}
           BRANCH: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          RDS_HOST: ${{ vars.RDS_HOST || secrets.RDS_HOST }}
+          RDS_HOST: ${{ vars.RDS_HOST }}
           RDS_PORT: ${{ vars.RDS_PORT || '5432' }}
           RDS_USERNAME: ${{ vars.RDS_USERNAME || 'postgres' }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD || 'postgres' }}
