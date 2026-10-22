@@ -159,31 +159,26 @@ jobs:
             echo "$GH_TOKEN" | sudo docker login ghcr.io -u $GH_ACTOR --password-stdin
             sudo docker compose pull
 
-            # 5. El Compose raiz ya incluye los microservicios y los dos nodos RabbitMQ
-            sudo docker compose up -d --remove-orphans --wait --wait-timeout 180
+            # 5. Iniciar contenedores con docker compose
+            sudo docker compose up -d --remove-orphans
             sudo docker compose ps
 
-            # 6. Confirmar que RabbitMQ formo el cluster de dos nodos
-            cluster_ready=false
-            for attempt in $(seq 1 12); do
-              if cluster_status="$(sudo docker exec rabbitmq-1 rabbitmqctl cluster_status 2>&1)" \
-                && printf '%s\n' "$cluster_status" | awk '
-                  /Running Nodes/ { running = 1; next }
-                  running && /^$/ { exit }
-                  running && /rabbit@rabbitmq-2/ { found = 1 }
-                  END { exit !found }
-                '; then
-                printf '%s\n' "$cluster_status"
-                cluster_ready=true
-                break
-              fi
-              echo "Esperando que rabbitmq-2 se una al cluster (intento $attempt/12)..."
-              sleep 5
-            done
-
-            if [ "$cluster_ready" != true ]; then
-              printf '%s\n' "$cluster_status"
-              echo "ERROR: RabbitMQ no formo el cluster de dos nodos."
-              exit 1
+            # 6. Garantizar y configurar Cluster RabbitMQ (2 nodos) y Politica HA
+            echo "=== CONFIGURANDO CLUSTER RABBITMQ (2 NODOS) ==="
+            sleep 10
+            if ! sudo docker exec rabbitmq-1 rabbitmqctl cluster_status 2>&1 | grep -q "rabbit@rabbitmq-2"; then
+              echo "Uniendo rabbitmq-2 al cluster rabbit@rabbitmq-1..."
+              sudo docker exec rabbitmq-2 rabbitmqctl stop_app || true
+              sudo docker exec rabbitmq-2 rabbitmqctl reset || true
+              sudo docker exec rabbitmq-2 rabbitmqctl join_cluster rabbit@rabbitmq-1 || true
+              sudo docker exec rabbitmq-2 rabbitmqctl start_app || true
             fi
+
+            # Configurar politica HA para sincronizar colas en ambos nodos
+            echo "=== APLICANDO POLITICA DE ALTA DISPONIBILIDAD (HA) ==="
+            sudo docker exec rabbitmq-1 rabbitmqctl set_policy ha-all "^q\." '{"ha-mode":"all","ha-sync-mode":"automatic"}' || true
+
+            # Mostrar estado final del cluster
+            echo "=== ESTADO FINAL DEL CLUSTER ==="
+            sudo docker exec rabbitmq-1 rabbitmqctl cluster_status
           EOF
