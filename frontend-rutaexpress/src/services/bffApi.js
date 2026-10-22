@@ -77,8 +77,18 @@ export const bffApi = {
     return res.data;
   },
 
+  createCatalogService: async (payload) => {
+    const res = await bffClient.post('/api/bff/catalog/services', payload);
+    return res.data;
+  },
+
   deleteCatalogService: async (id) => {
     const res = await bffClient.delete(`/api/bff/catalog/services/${id}`);
+    return res.data;
+  },
+
+  simulateDlq: async (payload = {}) => {
+    const res = await bffClient.post('/api/bff/shipments/demo/dlq', payload);
     return res.data;
   },
 
