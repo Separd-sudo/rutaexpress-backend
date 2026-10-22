@@ -126,9 +126,6 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${RDS_PASSWORD:-postgres}
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -Xms96m -Xmx192m
-    depends_on:
-      postgres-db:
-        condition: service_healthy
     networks:
       - rutaexpress-net
     healthcheck:

@@ -92,16 +92,11 @@ jobs:
       # 7. Desplegar en EC2 via SSH (GitOps / CD automático)
       - name: Deploy to EC2 via SSH
         env:
-          EC2_IP: ${{ secrets.TARGET_HOST_IP }}
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           RDS_HOST: ${{ secrets.RDS_HOST }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
           RDS_PORT: ${{ env.RDS_PORT }}
           RDS_USERNAME: ${{ env.RDS_USERNAME }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_ACTOR: ${{ github.actor }}
-          BRANCH: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/ec2_key
@@ -115,10 +110,22 @@ jobs:
               -o HostKeyAlgorithms=+ssh-rsa \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               -i ~/.ssh/ec2_key \
-              ec2-user@$EC2_IP \
-              "bash -s" << 'EOF'
+              ec2-user@${{ secrets.TARGET_HOST_IP }} \
+              bash -s << 'EOF'
             set -e
-            set -x # <--- ESTO HARÁ QUE SE VEAN TODOS LOS COMANDOS EN EL LOG
+            set -x
+
+            # Inyectar valores de forma segura
+            EC2_IP="${{ secrets.TARGET_HOST_IP }}"
+            BRANCH="${{ github.ref_name }}"
+            REPO="${{ github.repository }}"
+            GH_TOKEN="${{ secrets.GITHUB_TOKEN }}"
+            GH_ACTOR="${{ github.actor }}"
+            RDS_HOST="${{ secrets.RDS_HOST }}"
+            RDS_PORT="${{ env.RDS_PORT }}"
+            RDS_USERNAME="${{ env.RDS_USERNAME }}"
+            RDS_PASSWORD="${{ secrets.RDS_PASSWORD }}"
+
             echo "=== CONECTADO A EC2: $EC2_IP ==="
             cd /home/ec2-user
 
@@ -131,7 +138,7 @@ jobs:
               echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab || true
             fi
 
-            # 2. Descargar o actualizar el repositorio (Con token para evitar errores si es privado)
+            # 2. Descargar o actualizar el repositorio con el token
             if [ ! -d "rutaexpress-backend/.git" ]; then
               rm -rf rutaexpress-backend
               git clone -b $BRANCH https://x-access-token:$GH_TOKEN@github.com/$REPO.git rutaexpress-backend
@@ -143,14 +150,14 @@ jobs:
             git reset --hard origin/$BRANCH
 
             # 3. Configurar variables de base de datos
-            cat << ENVEOF > .env
+            cat << 'ENVEOF' > .env
             RDS_HOST=${RDS_HOST}
             RDS_PORT=${RDS_PORT}
             RDS_USERNAME=${RDS_USERNAME}
             RDS_PASSWORD=${RDS_PASSWORD}
             ENVEOF
 
-            # 4. Autenticar con GHCR y descargar imagenes (usando sudo docker por permisos)
+            # 4. Autenticar con GHCR y descargar imagenes
             echo "$GH_TOKEN" | sudo docker login ghcr.io -u $GH_ACTOR --password-stdin
             sudo docker compose pull
 
