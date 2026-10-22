@@ -15,6 +15,9 @@ jobs:
   build-push-deploy:
     name: Build, Push to GHCR and Deploy to EC2
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       # 1. Descarga el código fuente desde GitHub
