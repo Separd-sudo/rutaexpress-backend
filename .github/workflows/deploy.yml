@@ -116,8 +116,9 @@ jobs:
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
               -i ~/.ssh/ec2_key \
               ec2-user@$EC2_IP \
-              "bash -s" << EOF
+              "bash -s" << 'EOF'
             set -e
+            set -x # <--- ESTO HARÁ QUE SE VEAN TODOS LOS COMANDOS EN EL LOG
             echo "=== CONECTADO A EC2: $EC2_IP ==="
             cd /home/ec2-user
 
@@ -130,10 +131,10 @@ jobs:
               echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab || true
             fi
 
-            # 2. Descargar o actualizar el repositorio
+            # 2. Descargar o actualizar el repositorio (Con token para evitar errores si es privado)
             if [ ! -d "rutaexpress-backend/.git" ]; then
               rm -rf rutaexpress-backend
-              git clone -b $BRANCH https://github.com/$REPO.git rutaexpress-backend
+              git clone -b $BRANCH https://x-access-token:$GH_TOKEN@github.com/$REPO.git rutaexpress-backend
             fi
 
             cd rutaexpress-backend
@@ -143,19 +144,19 @@ jobs:
 
             # 3. Configurar variables de base de datos
             cat << ENVEOF > .env
-          RDS_HOST=${RDS_HOST}
-          RDS_PORT=${RDS_PORT}
-          RDS_USERNAME=${RDS_USERNAME}
-          RDS_PASSWORD=${RDS_PASSWORD}
-          ENVEOF
+            RDS_HOST=${RDS_HOST}
+            RDS_PORT=${RDS_PORT}
+            RDS_USERNAME=${RDS_USERNAME}
+            RDS_PASSWORD=${RDS_PASSWORD}
+            ENVEOF
 
-            # 4. Autenticar con GHCR y descargar imagenes
-            echo "$GH_TOKEN" | docker login ghcr.io -u $GH_ACTOR --password-stdin
-            docker compose pull
+            # 4. Autenticar con GHCR y descargar imagenes (usando sudo docker por permisos)
+            echo "$GH_TOKEN" | sudo docker login ghcr.io -u $GH_ACTOR --password-stdin
+            sudo docker compose pull
 
             # 5. Iniciar contenedores + Cluster RabbitMQ (2 nodos)
-            docker compose down --remove-orphans || true
-            docker compose up -d
-            docker compose ps
-            docker exec rabbitmq-1 rabbitmqctl cluster_status || true
+            sudo docker compose down --remove-orphans || true
+            sudo docker compose up -d
+            sudo docker compose ps
+            sudo docker exec rabbitmq-1 rabbitmqctl cluster_status || true
           EOF
