@@ -13,7 +13,7 @@ env:
 
 jobs:
   build-push-deploy:
-    name: Build, Push to GHCR and Deploy to EC2
+    name: Build, Push to GHCR and Deploy to EC22
     runs-on: ubuntu-latest
     permissions:
       contents: read
