@@ -157,8 +157,10 @@ Entra a tu repositorio en GitHub $\rightarrow$ **Settings $\rightarrow$ Secrets 
    - Creación y subida de las 5 imágenes Docker a GitHub Container Registry (`ghcr.io`).
    - Conexión por SSH a tu EC2 de aplicaciones (`TARGET_HOST_IP`).
    - Configuración de Swap de 2 GB para optimizar la memoria.
-   - Descarga de imágenes y ejecución de `docker compose up -d`.
-   - Inicialización del clúster RabbitMQ (`rabbitmq-1` y `rabbitmq-2`) y verificación de estado con `rabbitmqctl cluster_status`.
+   - Descarga de imágenes y ejecución del Compose de la raíz, que levanta los microservicios y los dos nodos RabbitMQ en una sola red.
+   - Espera a que los servicios estén saludables y verifica que `rabbitmq-1` reporte también a `rabbit@rabbitmq-2` en `rabbitmqctl cluster_status`.
+
+   No ejecutes además `infra/mq/docker-compose.yml` en la misma EC2: define contenedores y puertos RabbitMQ que ya administra el Compose de la raíz, por lo que entrarían en conflicto.
 
 ---
 

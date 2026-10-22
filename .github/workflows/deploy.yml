@@ -113,7 +113,6 @@ jobs:
               ec2-user@${{ secrets.TARGET_HOST_IP }} \
               bash -s << 'EOF'
             set -e
-            set -x
 
             # Inyectar valores de forma segura
             EC2_IP="${{ secrets.TARGET_HOST_IP }}"
@@ -150,20 +149,41 @@ jobs:
             git reset --hard origin/$BRANCH
 
             # 3. Configurar variables de base de datos
-            cat << 'ENVEOF' > .env
-            RDS_HOST=${RDS_HOST}
-            RDS_PORT=${RDS_PORT}
-            RDS_USERNAME=${RDS_USERNAME}
-            RDS_PASSWORD=${RDS_PASSWORD}
-            ENVEOF
+            (
+              umask 077
+              printf 'RDS_HOST=%s\nRDS_PORT=%s\nRDS_USERNAME=%s\nRDS_PASSWORD=%s\n' \
+                "$RDS_HOST" "$RDS_PORT" "$RDS_USERNAME" "$RDS_PASSWORD" > .env
+            )
 
             # 4. Autenticar con GHCR y descargar imagenes
             echo "$GH_TOKEN" | sudo docker login ghcr.io -u $GH_ACTOR --password-stdin
             sudo docker compose pull
 
-            # 5. Iniciar contenedores + Cluster RabbitMQ (2 nodos)
-            sudo docker compose down --remove-orphans || true
-            sudo docker compose up -d
+            # 5. El Compose raiz ya incluye los microservicios y los dos nodos RabbitMQ
+            sudo docker compose up -d --remove-orphans --wait --wait-timeout 180
             sudo docker compose ps
-            sudo docker exec rabbitmq-1 rabbitmqctl cluster_status || true
+
+            # 6. Confirmar que RabbitMQ formo el cluster de dos nodos
+            cluster_ready=false
+            for attempt in $(seq 1 12); do
+              if cluster_status="$(sudo docker exec rabbitmq-1 rabbitmqctl cluster_status 2>&1)" \
+                && printf '%s\n' "$cluster_status" | awk '
+                  /Running Nodes/ { running = 1; next }
+                  running && /^$/ { exit }
+                  running && /rabbit@rabbitmq-2/ { found = 1 }
+                  END { exit !found }
+                '; then
+                printf '%s\n' "$cluster_status"
+                cluster_ready=true
+                break
+              fi
+              echo "Esperando que rabbitmq-2 se una al cluster (intento $attempt/12)..."
+              sleep 5
+            done
+
+            if [ "$cluster_ready" != true ]; then
+              printf '%s\n' "$cluster_status"
+              echo "ERROR: RabbitMQ no formo el cluster de dos nodos."
+              exit 1
+            fi
           EOF
