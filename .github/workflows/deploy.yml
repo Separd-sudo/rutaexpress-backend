@@ -1,26 +1,27 @@
-name: Deploy RutaExpress Backend to EC2 via GHCR
+name: CI/CD RutaExpress Build Push Deploy EC2 EP3
 
 on:
   push:
     branches:
-      - main
       - develop
-  workflow_dispatch:
+      - main
 
 env:
   REGISTRY: ghcr.io
+  RDS_PORT: 5432
+  RDS_USERNAME: postgres
 
 jobs:
-  build-and-deploy:
+  build-push-deploy:
+    name: Build, Push to GHCR and Deploy to EC2
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - name: Checkout code
+      # 1. Descarga el código fuente desde GitHub
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Configurar Java 17 para compilar los microservicios
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -28,19 +29,23 @@ jobs:
           java-version: '17'
           cache: 'maven'
 
+      # 3. Compilar los microservicios con Maven
       - name: Build all microservices with Maven
         run: mvn --batch-mode --no-transfer-progress clean package -DskipTests
 
+      # 4. Configurar el constructor de Docker
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GitHub Container Registry
+      # 5. Autenticar con el Container Registry (GHCR)
+      - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 6. Construir y subir las 5 imágenes a GHCR
       - name: Build and push Catalog image
         uses: docker/build-push-action@v5
         with:
@@ -81,19 +86,19 @@ jobs:
           push: true
           tags: ghcr.io/separd-sudo/ms-rutaexpress-bff:latest
 
-      - name: Deploy to EC2 via Native SSH
-        if: ${{ vars.TARGET_HOST_IP != '' }}
+      # 7. Desplegar en EC2 via SSH (GitOps / CD automático)
+      - name: Deploy to EC2 via SSH
         env:
-          EC2_IP: ${{ vars.TARGET_HOST_IP }}
+          EC2_IP: ${{ secrets.TARGET_HOST_IP }}
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          RDS_HOST: ${{ secrets.RDS_HOST }}
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          RDS_PORT: ${{ env.RDS_PORT }}
+          RDS_USERNAME: ${{ env.RDS_USERNAME }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR: ${{ github.actor }}
           BRANCH: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
-          RDS_HOST: ${{ vars.RDS_HOST }}
-          RDS_PORT: ${{ vars.RDS_PORT || '5432' }}
-          RDS_USERNAME: ${{ vars.RDS_USERNAME || 'postgres' }}
-          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD || 'postgres' }}
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/ec2_key
@@ -113,9 +118,8 @@ jobs:
             echo "=== CONECTADO A EC2: $EC2_IP ==="
             cd /home/ec2-user
 
-            # 1. Configurar Swap de 2GB si no existe
+            # 1. Swap para rendimiento en EC2
             if [ ! -f /swapfile ]; then
-              echo "=== CREANDO SWAPFILE DE 2GB ==="
               sudo dd if=/dev/zero of=/swapfile bs=1M count=2048 status=none
               sudo chmod 600 /swapfile
               sudo mkswap /swapfile
@@ -123,13 +127,7 @@ jobs:
               echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab || true
             fi
 
-            # 2. Detectar comando docker (con o sin sudo)
-            DOCKER="docker"
-            if ! docker ps > /dev/null 2>&1; then
-              DOCKER="sudo docker"
-            fi
-
-            # 3. Clonar o actualizar repositorio
+            # 2. Descargar o actualizar el repositorio
             if [ ! -d "rutaexpress-backend/.git" ]; then
               rm -rf rutaexpress-backend
               git clone -b $BRANCH https://github.com/$REPO.git rutaexpress-backend
@@ -140,46 +138,21 @@ jobs:
             git checkout $BRANCH
             git reset --hard origin/$BRANCH
 
-            # 4. Asegurar Docker Compose instalado
-            if ! \$DOCKER compose version > /dev/null 2>&1; then
-              echo "=== INSTALANDO DOCKER COMPOSE ==="
-              sudo dnf install -y docker-compose-plugin || {
-                sudo mkdir -p /usr/libexec/docker/cli-plugins /usr/local/bin
-                sudo curl -sSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/libexec/docker/cli-plugins/docker-compose
-                sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
-                sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
-              }
-            fi
-
-            # 5. Si RDS_HOST está definido, configurar .env e inicializar las 3 BDs en RDS
-            if [ -n "$RDS_HOST" ] && [ "$RDS_HOST" != "postgres-db" ]; then
-              cat << ENVEOF > .env
+            # 3. Configurar variables de base de datos
+            cat << ENVEOF > .env
           RDS_HOST=${RDS_HOST}
           RDS_PORT=${RDS_PORT}
           RDS_USERNAME=${RDS_USERNAME}
           RDS_PASSWORD=${RDS_PASSWORD}
           ENVEOF
-              \$DOCKER run --rm -e PGPASSWORD="${RDS_PASSWORD}" postgres:16-alpine sh -c "
-                psql -h ${RDS_HOST} -p ${RDS_PORT} -U ${RDS_USERNAME} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'rutaexpress_catalog'\" | grep -q 1 || psql -h ${RDS_HOST} -p ${RDS_PORT} -U ${RDS_USERNAME} -d postgres -c \"CREATE DATABASE rutaexpress_catalog;\"
-                psql -h ${RDS_HOST} -p ${RDS_PORT} -U ${RDS_USERNAME} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'rutaexpress_audit'\" | grep -q 1 || psql -h ${RDS_HOST} -p ${RDS_PORT} -U ${RDS_USERNAME} -d postgres -c \"CREATE DATABASE rutaexpress_audit;\"
-                psql -h ${RDS_HOST} -p ${RDS_PORT} -U ${RDS_USERNAME} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'rutaexpress_shipments'\" | grep -q 1 || psql -h ${RDS_HOST} -p ${RDS_PORT} -U ${RDS_USERNAME} -d postgres -c \"CREATE DATABASE rutaexpress_shipments;\"
-              " || true
-            fi
 
-            # 6. Autenticar con GHCR y descargar imagenes
-            echo "=== AUTENTICANDO CON GHCR EN EC2 ==="
-            echo "$GH_TOKEN" | \$DOCKER login ghcr.io -u $GH_ACTOR --password-stdin
+            # 4. Autenticar con GHCR y descargar imagenes
+            echo "$GH_TOKEN" | docker login ghcr.io -u $GH_ACTOR --password-stdin
+            docker compose pull
 
-            echo "=== DESCARGANDO IMAGENES PRECONSTRUIDAS ==="
-            \$DOCKER compose pull
-
-            echo "=== INICIANDO CONTENEDORES OPTIMIZADOS + CLUSTER RABBITMQ (2 NODOS) ==="
-            \$DOCKER compose down --remove-orphans || true
-            \$DOCKER compose up -d
-
-            echo "=== ESTADO DE CONTENEDORES ==="
-            \$DOCKER compose ps
-
-            echo "=== ESTADO DEL CLUSTER RABBITMQ (NODOS 1 Y 2) ==="
-            \$DOCKER exec rabbitmq-1 rabbitmqctl cluster_status || true
+            # 5. Iniciar contenedores + Cluster RabbitMQ (2 nodos)
+            docker compose down --remove-orphans || true
+            docker compose up -d
+            docker compose ps
+            docker exec rabbitmq-1 rabbitmqctl cluster_status || true
           EOF
