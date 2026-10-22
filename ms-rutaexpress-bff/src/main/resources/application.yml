@@ -8,12 +8,12 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${COGNITO_ISSUER_URI:${AZURE_JWT_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AkiImfjh5}}
-          jwk-set-uri: ${COGNITO_JWK_SET_URI:${AZURE_JWK_SET_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AkiImfjh5/.well-known/jwks.json}}
+          issuer-uri: ${AZURE_JWT_ISSUER_URI:https://sts.windows.net/b7bd70fc-34e6-4f0c-80cc-e0909f96d096/}
+          jwk-set-uri: ${AZURE_JWK_SET_URI:https://login.microsoftonline.com/b7bd70fc-34e6-4f0c-80cc-e0909f96d096/discovery/v2.0/keys}
 
 security:
   azure:
-    enabled: ${SECURITY_AZURE_ENABLED:${SECURITY_COGNITO_ENABLED:false}}
+    enabled: ${SECURITY_AZURE_ENABLED:false}
 
 services:
   shipments:

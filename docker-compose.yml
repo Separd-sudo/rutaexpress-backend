@@ -224,6 +224,8 @@ services:
       - AUDIT_SERVICE_URL=http://audit-svc:8083
       - RABBITMQ_SERVICE_URL=http://rabbitmq-svc:8084
       - SECURITY_AZURE_ENABLED=${SECURITY_AZURE_ENABLED:-false}
+      - AZURE_JWT_ISSUER_URI=${AZURE_JWT_ISSUER_URI:-https://sts.windows.net/b7bd70fc-34e6-4f0c-80cc-e0909f96d096/}
+      - AZURE_JWK_SET_URI=${AZURE_JWK_SET_URI:-https://login.microsoftonline.com/b7bd70fc-34e6-4f0c-80cc-e0909f96d096/discovery/v2.0/keys}
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-XX:+UseSerialGC -Xms96m -Xmx192m
     depends_on:

@@ -27,15 +27,15 @@ public class SecurityConfig {
     @Value("${security.azure.enabled:false}")
     private boolean azureAuthEnabled;
 
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_AkiImfjh5/.well-known/jwks.json}")
+    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:https://login.microsoftonline.com/b7bd70fc-34e6-4f0c-80cc-e0909f96d096/discovery/v2.0/keys}")
     private String jwkSetUri;
 
     /**
-     * Decodificador explicito para tokens JWT (AWS Cognito / Microsoft Entra ID).
+     * Decodificador explicito para tokens JWT (Microsoft Entra ID / Azure AD).
      * Valida la firma criptografica asimetrica (RSA256) contra el endpoint publico JWKS.
      */
     @Bean
-    public JwtDecoder jwtCognitoDecoder() {
+    public JwtDecoder jwtDecoder() {
         return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
@@ -49,34 +49,40 @@ public class SecurityConfig {
         if (azureAuthEnabled) {
             http
                 .authorizeHttpRequests(auth -> auth
-                    // Endpoints públicos
-                    .requestMatchers("/api/bff/health", "/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/bff/catalog/**").permitAll()
+                    // Endpoints públicos y de diagnóstico
+                    .requestMatchers("/api/bff/health", "/api/health", "/health", "/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/bff/catalog/**", "/api/catalog/**").permitAll()
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                    // Roles definidos en la pauta
-                    // Admin: Administra catálogo y tarifas (Crear, Modificar, Eliminar)
-                    .requestMatchers(HttpMethod.POST, "/api/bff/catalog/**").hasRole("Admin")
-                    .requestMatchers(HttpMethod.PUT, "/api/bff/catalog/**").hasRole("Admin")
-                    .requestMatchers(HttpMethod.DELETE, "/api/bff/catalog/**").hasRole("Admin")
+                    // Roles definidos para RutaExpress:
+                    // 1. Admin: Administra catálogo y tarifas (Crear, Modificar, Eliminar)
+                    .requestMatchers(HttpMethod.POST, "/api/bff/catalog/**", "/api/catalog/**").hasRole("Admin")
+                    .requestMatchers(HttpMethod.PUT, "/api/bff/catalog/**", "/api/catalog/**").hasRole("Admin")
+                    .requestMatchers(HttpMethod.DELETE, "/api/bff/catalog/**", "/api/catalog/**").hasRole("Admin")
 
-                    // Despachador y Admin: Cambian estado de envíos
-                    .requestMatchers(HttpMethod.PUT, "/api/bff/shipments/*/status").hasAnyRole("Despachador", "Admin")
+                    // 2. Despachador y Admin: Cambian estado de envíos (Despachador SOLO puede cambiar estado)
+                    .requestMatchers(HttpMethod.PUT, "/api/bff/shipments/*/status", "/api/shipments/*/status").hasAnyRole("Despachador", "Admin")
 
-                    // Cliente, Despachador y Admin: Crean y consultan envíos
-                    .requestMatchers(HttpMethod.POST, "/api/bff/shipments/**").hasAnyRole("Cliente", "Despachador", "Admin")
-                    .requestMatchers(HttpMethod.GET, "/api/bff/shipments/**").hasAnyRole("Cliente", "Despachador", "Admin", "Auditor")
-                    // Eliminación / Cancelación de envío: Cliente y Admin
-                    .requestMatchers(HttpMethod.DELETE, "/api/bff/shipments/**").hasAnyRole("Cliente", "Admin")
+                    // 3. Cliente y Admin: Crean nuevos envíos
+                    .requestMatchers(HttpMethod.POST, "/api/bff/shipments/**", "/api/shipments/**").hasAnyRole("Cliente", "Admin")
 
-                    // Auditor y Admin: Consulta timeline y auditoría
-                    .requestMatchers("/api/bff/audit/**").hasAnyRole("Auditor", "Admin")
+                    // 4. Cliente, Despachador, Auditor y Admin: Consultan envíos (lectura)
+                    .requestMatchers(HttpMethod.GET, "/api/bff/shipments/**", "/api/shipments/**").hasAnyRole("Cliente", "Despachador", "Auditor", "Admin")
+
+                    // 5. Admin: Eliminación / Cancelación de envíos
+                    .requestMatchers(HttpMethod.DELETE, "/api/bff/shipments/**", "/api/shipments/**").hasRole("Admin")
+
+                    // 6. Auditor y Admin: Consulta timeline y auditoría
+                    .requestMatchers("/api/bff/audit/**", "/api/audit/**").hasAnyRole("Auditor", "Admin")
+
+                    // 7. Admin: Métricas operacionales y gestión de colas RabbitMQ
+                    .requestMatchers("/api/bff/rabbitmq/**", "/api/rabbitmq/**").hasRole("Admin")
 
                     .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                     .jwt(jwt -> jwt
-                        .decoder(jwtCognitoDecoder())
+                        .decoder(jwtDecoder())
                         .jwtAuthenticationConverter(new JwtRoleConverter())
                     )
                 );

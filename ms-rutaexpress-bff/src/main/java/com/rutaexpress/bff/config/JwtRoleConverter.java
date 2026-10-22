@@ -38,9 +38,20 @@ public class JwtRoleConverter implements Converter<Jwt, AbstractAuthenticationTo
     private Collection<GrantedAuthority> extractAzureRoles(Jwt jwt) {
         Object rolesClaim = jwt.getClaims().get("roles");
         if (rolesClaim instanceof List<?> roleList) {
-            return roleList.stream()
-                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toString().trim()))
-                    .collect(Collectors.toList());
+            Set<GrantedAuthority> authorities = new HashSet<>();
+            for (Object role : roleList) {
+                if (role != null) {
+                    String roleName = role.toString().trim();
+                    if (!roleName.isEmpty()) {
+                        // Rol exacto como viene de Azure (ej: Admin, Despachador, Cliente, Auditor)
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + roleName));
+                        // Tolerancia a variaciones de mayúsculas/minúsculas (ej: admin -> Admin)
+                        String capitalized = Character.toUpperCase(roleName.charAt(0)) + roleName.substring(1).toLowerCase();
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + capitalized));
+                    }
+                }
+            }
+            return authorities;
         }
         return Collections.emptyList();
     }
