@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,35 +30,38 @@ public class BffCatalogController {
     @Operation(summary = "Listar catalogo de servicios (BFF)")
     public ResponseEntity<List<Map<String, Object>>> listServices(
             @RequestParam(name = "activeOnly", required = false) Boolean activeOnly) {
-        return catalogClient.get()
+        List<Map<String, Object>> response = catalogClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/catalog/services")
                         .queryParamIfPresent("activeOnly", java.util.Optional.ofNullable(activeOnly))
                         .build())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/services/{id}")
     @Operation(summary = "Obtener servicio por ID (BFF)")
     public ResponseEntity<Map<String, Object>> getServiceById(@PathVariable("id") Long id) {
-        return catalogClient.get()
+        Map<String, Object> response = catalogClient.get()
                 .uri("/api/catalog/services/{id}", id)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/services")
     @Operation(summary = "Crear nuevo servicio de catalogo (Admin)")
     public ResponseEntity<Map<String, Object>> createService(@RequestBody Map<String, Object> body) {
-        return catalogClient.post()
+        Map<String, Object> response = catalogClient.post()
                 .uri("/api/catalog/services")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/services/{id}")
@@ -65,12 +69,13 @@ public class BffCatalogController {
     public ResponseEntity<Map<String, Object>> updateService(
             @PathVariable("id") Long id,
             @RequestBody Map<String, Object> body) {
-        return catalogClient.put()
+        Map<String, Object> response = catalogClient.put()
                 .uri("/api/catalog/services/{id}", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/services/{id}")

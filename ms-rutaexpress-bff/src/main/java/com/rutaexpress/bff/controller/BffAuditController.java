@@ -28,11 +28,12 @@ public class BffAuditController {
     @GetMapping({"/shipments/{shipmentId}", "/{shipmentId}"})
     @Operation(summary = "Obtener timeline de un envio (BFF)")
     public ResponseEntity<List<Map<String, Object>>> getShipmentTimeline(@PathVariable("shipmentId") Long shipmentId) {
-        return auditClient.get()
+        List<Map<String, Object>> response = auditClient.get()
                 .uri("/api/audit/shipments/{id}", shipmentId)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
@@ -42,7 +43,7 @@ public class BffAuditController {
             @RequestParam(name = "eventType", required = false) String eventType,
             @RequestParam(name = "from", required = false) String from,
             @RequestParam(name = "to", required = false) String to) {
-        return auditClient.get()
+        List<Map<String, Object>> response = auditClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/audit")
                         .queryParamIfPresent("user", java.util.Optional.ofNullable(user))
@@ -52,6 +53,7 @@ public class BffAuditController {
                         .build())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        return ResponseEntity.ok(response);
     }
 }

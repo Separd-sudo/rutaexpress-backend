@@ -34,43 +34,47 @@ public class BffShipmentController {
     @PostMapping
     @Operation(summary = "Crear nuevo envio (BFF)", description = "Redirige la creacion del envio al microservicio de shipments")
     public ResponseEntity<Map<String, Object>> createShipment(@RequestBody Map<String, Object> body) {
-        return shipmentsClient.post()
+        Map<String, Object> response = shipmentsClient.post()
                 .uri("/api/shipments")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/demo/dlq")
     @Operation(summary = "Simular envío de mensaje fallido hacia DLQ (BFF)")
     public ResponseEntity<Map<String, Object>> simulateDlq(@RequestBody(required = false) Map<String, Object> body) {
-        return shipmentsClient.post()
+        Map<String, Object> response = shipmentsClient.post()
                 .uri("/api/shipments/demo/dlq")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body != null ? body : Map.of())
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener envio por ID (BFF)")
     public ResponseEntity<Map<String, Object>> getShipmentById(@PathVariable("id") Long id) {
-        return shipmentsClient.get()
+        Map<String, Object> response = shipmentsClient.get()
                 .uri("/api/shipments/{id}", id)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/tracking/{trackingNumber}")
     @Operation(summary = "Consultar envio por tracking (BFF)")
     public ResponseEntity<Map<String, Object>> getShipmentByTracking(@PathVariable("trackingNumber") String trackingNumber) {
-        return shipmentsClient.get()
+        Map<String, Object> response = shipmentsClient.get()
                 .uri("/api/shipments/tracking/{trackingNumber}", trackingNumber)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}/status")
@@ -78,12 +82,13 @@ public class BffShipmentController {
     public ResponseEntity<Map<String, Object>> updateStatus(
             @PathVariable("id") Long id,
             @RequestBody Map<String, Object> body) {
-        return shipmentsClient.put()
+        Map<String, Object> response = shipmentsClient.put()
                 .uri("/api/shipments/{id}/status", id)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
@@ -92,7 +97,7 @@ public class BffShipmentController {
             @RequestParam(name = "status", required = false) String status,
             @RequestParam(name = "from", required = false) String from,
             @RequestParam(name = "to", required = false) String to) {
-        return shipmentsClient.get()
+        List<Map<String, Object>> response = shipmentsClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/shipments")
                         .queryParamIfPresent("status", java.util.Optional.ofNullable(status))
@@ -101,7 +106,8 @@ public class BffShipmentController {
                         .build())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/full-trace")
