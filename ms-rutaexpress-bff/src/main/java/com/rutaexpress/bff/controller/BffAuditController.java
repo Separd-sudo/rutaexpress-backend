@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/bff/audit")
+@RequestMapping({"/api/bff/audit", "/api/audit"})
 @Tag(name = "BFF - Auditoria", description = "Consulta de eventos y trazabilidad para el frontend")
 public class BffAuditController {
 
@@ -25,7 +25,7 @@ public class BffAuditController {
         this.auditClient = builder.baseUrl(auditUrl).build();
     }
 
-    @GetMapping("/shipments/{shipmentId}")
+    @GetMapping({"/shipments/{shipmentId}", "/{shipmentId}"})
     @Operation(summary = "Obtener timeline de un envio (BFF)")
     public ResponseEntity<List<Map<String, Object>>> getShipmentTimeline(@PathVariable("shipmentId") Long shipmentId) {
         return auditClient.get()

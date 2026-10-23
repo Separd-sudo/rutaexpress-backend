@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/bff/catalog")
+@RequestMapping({"/api/bff/catalog", "/api/catalog"})
 @Tag(name = "BFF - Catalogo", description = "Gestion de catalogo de servicios y capacidades para el frontend")
 public class BffCatalogController {
 

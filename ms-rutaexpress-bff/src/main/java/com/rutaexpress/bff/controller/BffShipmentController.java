@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/bff/shipments")
+@RequestMapping({"/api/bff/shipments", "/api/shipments"})
 @Tag(name = "BFF - Envios", description = "Acceso unificado y agregacion para la gestion de envios desde React")
 @Slf4j
 public class BffShipmentController {
@@ -38,6 +38,17 @@ public class BffShipmentController {
                 .uri("/api/shipments")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
+                .retrieve()
+                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+    }
+
+    @PostMapping("/demo/dlq")
+    @Operation(summary = "Simular envío de mensaje fallido hacia DLQ (BFF)")
+    public ResponseEntity<Map<String, Object>> simulateDlq(@RequestBody(required = false) Map<String, Object> body) {
+        return shipmentsClient.post()
+                .uri("/api/shipments/demo/dlq")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body != null ? body : Map.of())
                 .retrieve()
                 .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
     }

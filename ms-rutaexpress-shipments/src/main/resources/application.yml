@@ -17,6 +17,21 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:rutaexpress}
+    password: ${SPRING_RABBITMQ_PASSWORD:rutaexpress123}
+    connection-timeout: 5000
+
+rabbitmq:
+  enabled: ${RABBITMQ_ENABLED:true}
+  exchanges:
+    direct: ${RABBITMQ_EXCHANGE_DIRECT:cmd.direct}
+    topic: ${RABBITMQ_EXCHANGE_TOPIC:cmd.topic}
+  routing-keys:
+    warehouse-direct: ${RABBITMQ_RK_WAREHOUSE_DIRECT:warehouse.ticket}
+    label-direct: ${RABBITMQ_RK_LABEL_DIRECT:label.gen}
 
 services:
   catalog:
@@ -32,6 +47,9 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    rabbit:
+      enabled: false
 
 springdoc:
   api-docs:

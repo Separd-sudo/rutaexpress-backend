@@ -1,0 +1,426 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  RutaExpress HTTP API Gateway with Microsoft Entra ID JWT authorizer and explicit routes to the BFF on EC2 (No wildcard proxy on business endpoints).
+
+Parameters:
+  BffHost:
+    Type: String
+    Default: 3.81.237.202
+    Description: Public DNS name or IPv4 address of the EC2 BFF host, without scheme or path.
+
+  BffPort:
+    Type: Number
+    Default: 8080
+    Description: Host port published by the BFF container on EC2.
+
+  StageName:
+    Type: String
+    Default: dev
+    AllowedPattern: '^[a-zA-Z0-9_-]+$'
+
+  TenantId:
+    Type: String
+    Default: b7bd70fc-34e6-4f0c-80cc-e0909f96d096
+    Description: Microsoft Entra tenant ID that issues the access token.
+
+  ApiClientId:
+    Type: String
+    Default: 1a9272d9-8271-48d5-a823-22b94af30424
+    Description: App registration client ID for the RutaExpress API.
+
+  FrontendOrigins:
+    Type: CommaDelimitedList
+    Default: http://localhost:5173
+    Description: Comma-separated browser origins allowed by CORS; no trailing slash.
+
+  RequiredScope:
+    Type: String
+    Default: access_as_user
+    Description: Scope value as it appears in the token scp claim (without the api:// resource prefix).
+
+Resources:
+  RutaExpressHttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: RutaExpress
+      Description: RutaExpress BFF HTTP API protected by Microsoft Entra ID (EP3).
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowCredentials: true
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+          - Accept
+          - Origin
+          - X-Requested-With
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowOrigins: !Ref FrontendOrigins
+        ExposeHeaders:
+          - Location
+        MaxAge: 3600
+
+  RutaExpressBffIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      Description: HTTP integration to the RutaExpress BFF on EC2.
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      IntegrationUri: !Sub 'http://${BffHost}:${BffPort}'
+      ConnectionType: INTERNET
+      RequestParameters:
+        'overwrite:path': '$request.path'
+        'overwrite:header.X-Forwarded-Prefix': !Sub '/${StageName}'
+      TimeoutInMillis: 29000
+      PayloadFormatVersion: '1.0'
+
+  RutaExpressJwtAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      Name: RutaExpress-EntraID-JWT
+      AuthorizerType: JWT
+      IdentitySource:
+        - '$request.header.Authorization'
+      JwtConfiguration:
+        Issuer: !Sub 'https://sts.windows.net/${TenantId}/'
+        Audience:
+          - !Ref ApiClientId
+          - !Sub 'api://${ApiClientId}'
+
+  # ===========================================================================
+  # 1. RUTAS PROTEGIDAS: GESTIÓN DE ENVÍOS (SHIPMENTS)
+  # ===========================================================================
+
+  ShipmentsCollectionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/shipments'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  CreateShipmentRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/shipments'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetShipmentRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/shipments/{id}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetShipmentByTrackingRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/shipments/tracking/{trackingNumber}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  ChangeShipmentStatusRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'PUT /api/shipments/{id}/status'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  FullShipmentTraceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/shipments/{id}/full-trace'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DlqDemoRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/shipments/demo/dlq'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  # ===========================================================================
+  # 2. RUTAS PROTEGIDAS: CATÁLOGO Y CAPACIDAD DE FLOTA (CATALOG)
+  # ===========================================================================
+
+  ListCatalogServicesRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/catalog/services'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  CreateCatalogServiceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/catalog/services'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  UpdateCatalogServiceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'PUT /api/catalog/services/{id}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteCatalogServiceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/catalog/services/{id}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  # ===========================================================================
+  # 3. RUTAS PROTEGIDAS: AUDITORÍA Y TRAZABILIDAD (AUDIT)
+  # ===========================================================================
+
+  AuditShipmentTimelineRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/audit/{shipmentId}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  AuditSearchRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/audit'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  # ===========================================================================
+  # 4. RUTAS PROTEGIDAS: ADMINISTRADOR RABBITMQ Y DLQ (EP3)
+  # ===========================================================================
+
+  CreateRabbitQueueRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/rabbitmq/queues'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetRabbitQueueInfoRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/rabbitmq/queues/{name}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteRabbitQueueRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/rabbitmq/queues/{name}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  PurgeRabbitQueueRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/rabbitmq/queues/{name}/purge'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  CreateRabbitExchangeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/rabbitmq/exchanges'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteRabbitExchangeRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/rabbitmq/exchanges/{name}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  CreateRabbitBindingRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/rabbitmq/bindings'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetRabbitEventsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/rabbitmq/events'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetRabbitDlqRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/rabbitmq/dlq'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetRabbitMetricsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/rabbitmq/metrics'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  # ===========================================================================
+  # 5. RUTAS PÚBLICAS DE DOCUMENTACIÓN Y SALUD (SWAGGER / HEALTH)
+  # ===========================================================================
+
+  SwaggerUiEntryRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /swagger-ui.html'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  SwaggerUiAssetsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /swagger-ui/{proxy+}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  OpenApiJsonRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /v3/api-docs'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  OpenApiDocsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /v3/api-docs/{proxy+}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  OpenApiYamlRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /v3/api-docs.yaml'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  HealthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /actuator/health'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  BffHealthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/bff/health'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: NONE
+
+  RutaExpressDevStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      StageName: !Ref StageName
+      AutoDeploy: true
+      Description: RutaExpress development stage.
+
+Outputs:
+  ApiId:
+    Description: API Gateway HTTP API ID.
+    Value: !Ref RutaExpressHttpApi
+
+  ApiBaseUrl:
+    Description: Base URL to configure as VITE_BFF_URL in the frontend.
+    Value: !Sub 'https://${RutaExpressHttpApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}'
+
+  JwtAuthorizerId:
+    Description: JWT authorizer ID used by the RutaExpress routes.
+    Value: !Ref RutaExpressJwtAuthorizer
+
+  BffIntegrationUri:
+    Description: EC2 BFF destination used by API Gateway.
+    Value: !Sub 'http://${BffHost}:${BffPort}'

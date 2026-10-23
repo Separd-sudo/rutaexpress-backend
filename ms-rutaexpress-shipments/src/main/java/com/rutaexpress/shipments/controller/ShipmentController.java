@@ -24,12 +24,27 @@ import java.util.List;
 public class ShipmentController {
 
     private final ShipmentService shipmentService;
+    private final com.rutaexpress.shipments.client.AuditClient auditClient;
 
     @PostMapping
     @Operation(summary = "Crear nuevo envio", description = "Registra un envio en estado inicial CREADO, calcula tarifa y notifica auditoria")
     public ResponseEntity<ShipmentResponse> createShipment(@Valid @RequestBody CreateShipmentRequest request) {
         ShipmentResponse response = shipmentService.createShipment(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/demo/dlq")
+    @Operation(summary = "Simular envío de mensaje con fallo hacia Dead Letter Queue (DLQ)")
+    public ResponseEntity<java.util.Map<String, Object>> simulateDlqEvent(
+            @RequestBody(required = false) java.util.Map<String, String> body) {
+        String tracking = body != null ? body.get("trackingNumber") : "RTX-DLQ-DEMO";
+        String details = body != null ? body.get("details") : "Prueba controlada de rechazo NACK y desvío a DLQ";
+        var envelope = auditClient.sendDemoDlqEvent(tracking, details);
+        return ResponseEntity.accepted().body(java.util.Map.of(
+                "status", "SENT_TO_DLQ_FLOW",
+                "targetDlq", "q.cmd.warehouse.dlq",
+                "envelope", envelope
+        ));
     }
 
     @GetMapping("/{id}")
