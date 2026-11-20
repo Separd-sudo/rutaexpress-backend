@@ -75,7 +75,7 @@ public class RabbitMQEventConsumerService {
             processedEvents.removeLast();
         }
 
-        forwardToAuditService(event);
+        forwardToAuditService(envelope.getEventId(), event);
     }
 
     public void recordDlqEvent(String dlqName, EventEnvelope envelope, String reason) {
@@ -146,12 +146,24 @@ public class RabbitMQEventConsumerService {
         return metrics;
     }
 
-    private void forwardToAuditService(ShipmentEventMessage event) {
+    private void forwardToAuditService(String eventId, ShipmentEventMessage event) {
         try {
+            // Se reenvia el eventId original: audit deduplica si el mismo evento ya llego por Kafka
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("eventId", eventId);
+            body.put("source", "rabbitmq");
+            body.put("shipmentId", event.getShipmentId());
+            body.put("trackingNumber", event.getTrackingNumber());
+            body.put("eventType", event.getEventType());
+            body.put("previousStatus", event.getPreviousStatus());
+            body.put("newStatus", event.getNewStatus());
+            body.put("performedBy", event.getPerformedBy());
+            body.put("userRole", event.getUserRole());
+            body.put("details", event.getDetails());
             auditRestClient.post()
                     .uri("/api/audit/events")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(event)
+                    .body(body)
                     .retrieve()
                     .toBodilessEntity();
             log.debug("[RabbitMQ -> Audit] Evento persistido en ms-rutaexpress-audit para envío {}", event.getShipmentId());

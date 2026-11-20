@@ -1,0 +1,106 @@
+# =====================================================================
+#  RutaExpress - Kafka LIVIANO para pruebas en tu PC
+#  1 ZooKeeper + 1 broker + Kafka UI (como la guia 3.2.1)
+#
+#  Usar cuando el PC no aguanta el cluster de 3 brokers.
+#  En AWS se usa docker-compose.yml (3 ZooKeeper + 3 brokers).
+#
+#  Levantar:  docker compose -f docker-compose.local.yml up -d
+#  Bajar:     docker compose -f docker-compose.local.yml down -v
+#
+#  Microservicios en tu PC:      KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+#  Microservicios en Docker:     KAFKA_BOOTSTRAP_SERVERS=host.docker.internal:19092
+#  ms-rutaexpress-kafka:         ademas KAFKA_TOPIC_REPLICAS=1
+# =====================================================================
+
+services:
+
+  zookeeper-1:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper-1
+    hostname: zookeeper-1
+    restart: unless-stopped
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_HEAP_OPTS: "-Xms64m -Xmx128m"
+    networks:
+      - kafka_cluster
+
+  kafka-1:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-1
+    hostname: kafka-1
+    restart: unless-stopped
+    depends_on:
+      - zookeeper-1
+    ports:
+      - "9092:9092"
+      - "19092:19092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper-1:2181"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,DOCKER://0.0.0.0:19092"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka-1:29092,PLAINTEXT_HOST://localhost:9092,DOCKER://host.docker.internal:19092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,DOCKER:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # 1 solo broker: todo con factor de replicacion 1
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_MIN_INSYNC_REPLICAS: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - kafka_cluster
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 > /dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  # Crea los mismos topics que en AWS, pero con 1 replica
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init
+    restart: "no"
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+    environment:
+      BS: "kafka-1:29092"
+      REPLICAS: 1
+      MIN_ISR: 1
+    volumes:
+      - ./create-topics.sh:/create-topics.sh:ro
+    entrypoint: ["bash", "/create-topics.sh"]
+    networks:
+      - kafka_cluster
+
+  # http://localhost:8090
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    container_name: kafka-ui
+    restart: unless-stopped
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: rutaexpress-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka-1:29092"
+      KAFKA_CLUSTERS_0_ZOOKEEPER: "zookeeper-1:2181"
+    networks:
+      - kafka_cluster
+
+networks:
+  kafka_cluster:
+    driver: bridge

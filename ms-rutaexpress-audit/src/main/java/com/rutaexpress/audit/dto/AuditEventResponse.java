@@ -20,5 +20,6 @@ public class AuditEventResponse {
     private String userRole;
     private String ipAddress;
     private String details;
+    private String source;
     private LocalDateTime timestamp;
 }

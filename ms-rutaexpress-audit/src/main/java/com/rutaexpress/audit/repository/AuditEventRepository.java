@@ -8,9 +8,14 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AuditEventRepository extends JpaRepository<AuditEvent, Long> {
+    boolean existsByEventId(String eventId);
+
+    Optional<AuditEvent> findByEventId(String eventId);
+
     List<AuditEvent> findByShipmentIdOrderByTimestampAsc(Long shipmentId);
 
     List<AuditEvent> findAllByOrderByTimestampDesc();

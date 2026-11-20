@@ -1,0 +1,37 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: ms-rutaexpress-kafka
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092,localhost:9093,localhost:9094}
+    admin:
+      fail-fast: false
+
+kafka:
+  topology:
+    partitions: ${KAFKA_TOPIC_PARTITIONS:3}
+    replicas: ${KAFKA_TOPIC_REPLICAS:3}
+  producer:
+    batch-size: ${KAFKA_PRODUCER_BATCH_SIZE:32768}
+    linger-ms: ${KAFKA_PRODUCER_LINGER_MS:20}
+    compression: ${KAFKA_PRODUCER_COMPRESSION:lz4}
+  loadtest:
+    processing-delay-ms: ${KAFKA_LOADTEST_DELAY_MS:10}
+    concurrency: ${KAFKA_LOADTEST_CONCURRENCY:1}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

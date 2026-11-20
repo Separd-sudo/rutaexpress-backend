@@ -49,6 +49,9 @@ public class AuditEvent {
     @Column(name = "ip_address", length = 64)
     private String ipAddress;
 
+    @Column(name = "source", length = 64)
+    private String source;
+
     @Column(columnDefinition = "TEXT")
     private String details;
 

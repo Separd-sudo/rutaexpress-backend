@@ -24,6 +24,10 @@ services:
     url: ${AUDIT_SERVICE_URL:http://127.0.0.1:8083}
   rabbitmq:
     url: ${RABBITMQ_SERVICE_URL:http://127.0.0.1:8084}
+  report:
+    url: ${REPORT_SERVICE_URL:http://127.0.0.1:8085}
+  kafka:
+    url: ${KAFKA_SERVICE_URL:http://127.0.0.1:8086}
 
 management:
   endpoints:
