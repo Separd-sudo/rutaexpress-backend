@@ -23,9 +23,12 @@ spring:
 kafka:
   topics:
     shipments-events: ${KAFKA_TOPIC_SHIPMENTS_EVENTS:shipments.events}
+    audit-timeline: ${KAFKA_TOPIC_AUDIT_TIMELINE:audit.timeline}
     dlt-suffix: .report.DLT
   consumer:
     group-id: ${KAFKA_CONSUMER_GROUP:report-svc}
+    # Grupo independiente para audit.timeline: su lag se monitorea por separado
+    timeline-group-id: ${KAFKA_TIMELINE_CONSUMER_GROUP:report-timeline-svc}
     concurrency: ${KAFKA_CONSUMER_CONCURRENCY:3}
   retry:
     max-attempts: 3

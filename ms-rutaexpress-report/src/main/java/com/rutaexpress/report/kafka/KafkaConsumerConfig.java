@@ -147,6 +147,50 @@ public class KafkaConsumerConfig implements KafkaListenerConfigurer {
         return factory;
     }
 
+    // ------------------------- Consumidor de audit.timeline -------------------------
+
+    /**
+     * Mismas garantias que el consumidor de shipments.events (deserializacion tolerante a errores,
+     * commit manual por registro, lectura desde el inicio si el grupo es nuevo), pero tipado con
+     * AuditTimelineEvent y con su propio consumer group.
+     */
+    @Bean
+    public ConsumerFactory<String, AuditTimelineEvent> auditTimelineConsumerFactory(
+            @Value("${kafka.consumer.timeline-group-id:report-timeline-svc}") String timelineGroupId) {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, timelineGroupId);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 100);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
+        props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class);
+        props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class);
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, AuditTimelineEvent.class.getName());
+        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, "*");
+        return new DefaultKafkaConsumerFactory<>(props);
+    }
+
+    /**
+     * Reutiliza el mismo DefaultErrorHandler: 3 reintentos con backoff exponencial y luego
+     * el mensaje se envia a audit.timeline.report.DLT (topic original + sufijo .report.DLT).
+     */
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, AuditTimelineEvent> auditTimelineListenerFactory(
+            ConsumerFactory<String, AuditTimelineEvent> auditTimelineConsumerFactory,
+            DefaultErrorHandler reportErrorHandler) {
+        ConcurrentKafkaListenerContainerFactory<String, AuditTimelineEvent> factory =
+                new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(auditTimelineConsumerFactory);
+        factory.setConcurrency(concurrency); // 1 hilo por particion (3 particiones)
+        factory.setCommonErrorHandler(reportErrorHandler);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
+        factory.getContainerProperties().setMissingTopicsFatal(false);
+        return factory;
+    }
+
     private static String rootMessage(Throwable ex) {
         Throwable t = ex;
         while (t.getCause() != null && t.getCause() != t) {
