@@ -40,6 +40,18 @@ public class BffKafkaController {
         return forward(HttpMethod.POST, request, body);
     }
 
+    @PutMapping("/**")
+    @Operation(summary = "Modificar configuracion de un topic: topics/{topic}/configs (BFF)")
+    public ResponseEntity<String> put(HttpServletRequest request, @RequestBody(required = false) String body) {
+        return forward(HttpMethod.PUT, request, body);
+    }
+
+    @DeleteMapping("/**")
+    @Operation(summary = "Eliminar topics o consumer groups: topics/{topic}, consumer-groups/{groupId} (BFF)")
+    public ResponseEntity<String> delete(HttpServletRequest request) {
+        return forward(HttpMethod.DELETE, request, null);
+    }
+
     private ResponseEntity<String> forward(HttpMethod method, HttpServletRequest request, String body) {
         String subPath = request.getRequestURI()
                 .replaceFirst("^/api/bff/kafka", "")

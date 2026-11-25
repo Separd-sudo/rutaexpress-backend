@@ -374,6 +374,16 @@ Resources:
       AuthorizerId: !Ref RutaExpressJwtAuthorizer
       AuthorizationScopes: [!Ref RequiredScope]
 
+  GetReportActivityRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/report/activity'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
   GetKafkaHealthRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -419,6 +429,46 @@ Resources:
     Properties:
       ApiId: !Ref RutaExpressHttpApi
       RouteKey: 'POST /api/kafka/topics'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  UpdateKafkaTopicConfigsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'PUT /api/kafka/topics/{topic}/configs'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  IncreaseKafkaTopicPartitionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/topics/{topic}/partitions'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteKafkaTopicRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/kafka/topics/{topic}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteKafkaConsumerGroupRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/kafka/consumer-groups/{groupId}'
       Target: !Sub 'integrations/${RutaExpressBffIntegration}'
       AuthorizationType: JWT
       AuthorizerId: !Ref RutaExpressJwtAuthorizer

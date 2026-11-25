@@ -75,6 +75,43 @@ public class KafkaAdminController {
         return ResponseEntity.status(HttpStatus.CREATED).body(adminService.createTopic(name, partitions, rf, configs));
     }
 
+    @PutMapping("/topics/{topic}/configs")
+    @Operation(summary = "Modificar la configuracion de un topic (body: set {clave: valor}, reset [claves])",
+            description = "Ej: {\"set\": {\"retention.ms\": \"86400000\"}, \"reset\": [\"segment.ms\"]}")
+    public Map<String, Object> updateTopicConfigs(@PathVariable("topic") String topic,
+                                                  @RequestBody Map<String, Object> body) throws Exception {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> rawSet = (Map<String, Object>) body.getOrDefault("set", Map.of());
+        // Los valores se convierten a texto: Kafka recibe todas las configuraciones como String
+        Map<String, String> set = new LinkedHashMap<>();
+        rawSet.forEach((k, v) -> set.put(k, String.valueOf(v)));
+        @SuppressWarnings("unchecked")
+        List<String> reset = (List<String>) body.getOrDefault("reset", List.of());
+        return adminService.updateTopicConfigs(topic, set, reset);
+    }
+
+    @PostMapping("/topics/{topic}/partitions")
+    @Operation(summary = "Aumentar las particiones de un topic (body: totalCount)",
+            description = "Kafka solo permite aumentar particiones, nunca reducirlas")
+    public Map<String, Object> increasePartitions(@PathVariable("topic") String topic,
+                                                  @RequestBody Map<String, Object> body) throws Exception {
+        Number total = Objects.requireNonNull((Number) body.get("totalCount"), "totalCount es obligatorio");
+        return adminService.increasePartitions(topic, total.intValue());
+    }
+
+    @DeleteMapping("/topics/{topic}")
+    @Operation(summary = "Eliminar un topic (los topics del flujo de negocio requieren force=true)")
+    public Map<String, Object> deleteTopic(@PathVariable("topic") String topic,
+                                           @RequestParam(name = "force", defaultValue = "false") boolean force) throws Exception {
+        return adminService.deleteTopic(topic, force);
+    }
+
+    @DeleteMapping("/consumer-groups/{groupId}")
+    @Operation(summary = "Eliminar un consumer group sin consumidores activos (borra sus offsets guardados)")
+    public Map<String, Object> deleteConsumerGroup(@PathVariable("groupId") String groupId) throws Exception {
+        return adminService.deleteConsumerGroup(groupId);
+    }
+
     @GetMapping("/consumer-groups")
     @Operation(summary = "Consumer groups con estado, miembros y lag total")
     public List<Map<String, Object>> consumerGroups() throws Exception {

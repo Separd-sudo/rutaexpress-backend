@@ -33,6 +33,8 @@ public class KafkaClusterConfig {
     public static final String AUDIT_TIMELINE = "audit.timeline";
     public static final String AUDIT_DLT = "shipments.events.audit.DLT";
     public static final String REPORT_DLT = "shipments.events.report.DLT";
+    /** DLT del consumidor de audit.timeline en ms-rutaexpress-report. */
+    public static final String TIMELINE_REPORT_DLT = "audit.timeline.report.DLT";
     public static final String LOADTEST = "rutaexpress.loadtest";
 
     private static final long DAY_MS = Duration.ofDays(1).toMillis();
@@ -55,6 +57,7 @@ public class KafkaClusterConfig {
                 topic(AUDIT_TIMELINE, TopicConfig.CLEANUP_POLICY_COMPACT + "," + TopicConfig.CLEANUP_POLICY_DELETE, 30 * DAY_MS),
                 topic(AUDIT_DLT, TopicConfig.CLEANUP_POLICY_DELETE, 14 * DAY_MS),
                 topic(REPORT_DLT, TopicConfig.CLEANUP_POLICY_DELETE, 14 * DAY_MS),
+                topic(TIMELINE_REPORT_DLT, TopicConfig.CLEANUP_POLICY_DELETE, 14 * DAY_MS),
                 topic(LOADTEST, TopicConfig.CLEANUP_POLICY_DELETE, Duration.ofHours(1).toMillis()));
     }
 

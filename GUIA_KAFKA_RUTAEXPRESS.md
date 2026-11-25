@@ -17,6 +17,8 @@ En RutaExpress, RabbitMQ se usa para **tareas** (etiqueta, ticket de bodega, ema
    acks=all + idempotencia                                             │      └─► shipments.events.audit.DLT
                                                                        └──► ms-rutaexpress-report (grupo report-svc)
                                                                               └─► shipments.events.report.DLT
+ audit.timeline ──► ms-rutaexpress-report (grupo report-timeline-svc): actividad por usuario / accion
+                      └─► audit.timeline.report.DLT
  ms-rutaexpress-kafka (admin :8086): topics, lag, DLT/reproceso, simulaciones, prueba de carga
 ```
 
@@ -28,6 +30,7 @@ En RutaExpress, RabbitMQ se usa para **tareas** (etiqueta, ticket de bodega, ema
 | `audit.timeline` | 3 | 3 | compact,delete | 30 días | Quién / qué / cuándo / desde dónde |
 | `shipments.events.audit.DLT` | 3 | 3 | delete | 14 días | Fallos definitivos del consumidor audit |
 | `shipments.events.report.DLT` | 3 | 3 | delete | 14 días | Fallos definitivos del consumidor report |
+| `audit.timeline.report.DLT` | 3 | 3 | delete | 14 días | Fallos definitivos del consumidor de `audit.timeline` en report |
 | `rutaexpress.loadtest` | 3 | 3 | delete | 1 hora | Pruebas de carga / consumer lag |
 
 Todos tienen `min.insync.replicas=2`: con `acks=all` el cluster tolera la caída de 1 broker sin perder escrituras.
@@ -131,6 +134,15 @@ curl -X PUT $BFF/api/bff/shipments/1/status -H 'Content-Type: application/json' 
 curl $BFF/api/bff/audit/shipments/1
 curl "$BFF/api/bff/report/kpis?range=last24h"
 curl "$BFF/api/bff/report/top-services?range=last7d"
+# Actividad por usuario (consumida desde el segundo topic: audit.timeline)
+curl "$BFF/api/bff/report/activity?range=last24h"
+
+# Administración de topics y consumer groups
+curl -X POST $BFF/api/bff/kafka/topics -H 'Content-Type: application/json' -d '{"name":"rutaexpress.demo","partitions":3,"replicationFactor":3,"configs":{"retention.ms":"3600000"}}'
+curl -X PUT $BFF/api/bff/kafka/topics/rutaexpress.demo/configs -H 'Content-Type: application/json' -d '{"set":{"retention.ms":"86400000","cleanup.policy":"delete"}}'
+curl -X POST $BFF/api/bff/kafka/topics/rutaexpress.demo/partitions -H 'Content-Type: application/json' -d '{"totalCount":6}'
+curl -X DELETE $BFF/api/bff/kafka/topics/rutaexpress.demo
+curl $BFF/api/bff/kafka/consumer-groups                           # audit-svc, report-svc, report-timeline-svc
 
 # Key -> misma partición (orden garantizado)
 for i in 1 2 3; do curl -X POST "$BFF/api/bff/kafka/lab/publish?key=RTX-ORDEN-555"; echo; done

@@ -41,6 +41,13 @@ public class BffReportController {
         return get("/api/report/events/recent?limit={limit}", limit);
     }
 
+    @GetMapping("/activity")
+    @Operation(summary = "Actividad de usuarios consumida desde el topic audit.timeline (BFF)")
+    public ResponseEntity<String> activity(@RequestParam(name = "range", defaultValue = "last24h") String range,
+                                           @RequestParam(name = "limit", defaultValue = "10") int limit) {
+        return get("/api/report/activity?range={range}&limit={limit}", range, limit);
+    }
+
     private ResponseEntity<String> get(String uri, Object... vars) {
         try {
             String body = reportClient.get().uri(uri, vars).accept(MediaType.APPLICATION_JSON)

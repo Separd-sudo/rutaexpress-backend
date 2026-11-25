@@ -15,7 +15,8 @@ import java.util.stream.Collectors;
 
 /**
  * Operaciones de administracion y observabilidad del cluster (AdminClient):
- * brokers, topics (lider / replicas / ISR / retencion), consumer groups y consumer lag.
+ * brokers, topics (crear / listar / describir / modificar configuracion / aumentar particiones / eliminar),
+ * consumer groups (listar / lag / eliminar) y consumer lag.
  */
 @Service
 @RequiredArgsConstructor
@@ -23,6 +24,16 @@ public class KafkaAdminService {
 
     private static final List<String> RELEVANT_CONFIGS = List.of(
             "cleanup.policy", "retention.ms", "retention.bytes", "min.insync.replicas", "segment.ms");
+
+    /** Configuraciones de topic que se pueden modificar desde la API de administracion. */
+    private static final List<String> EDITABLE_CONFIGS = List.of(
+            "cleanup.policy", "retention.ms", "retention.bytes", "min.insync.replicas", "segment.ms",
+            "max.message.bytes", "min.compaction.lag.ms", "delete.retention.ms");
+
+    /** Topics que sostienen el flujo de negocio: no se eliminan por accidente (requieren force=true). */
+    private static final Set<String> PROTECTED_TOPICS = Set.of(
+            "shipments.events", "audit.timeline",
+            "shipments.events.audit.DLT", "shipments.events.report.DLT", "audit.timeline.report.DLT");
 
     private final AdminClient admin;
 
@@ -114,6 +125,108 @@ public class KafkaAdminService {
         admin.createTopics(List.of(topic)).all().get();
         return describeTopic(name);
     }
+
+    // ---------------- Mantenimiento de topics (modificar / eliminar) ----------------
+
+    /**
+     * Modifica la configuracion de un topic sin recrearlo (incrementalAlterConfigs):
+     *  - set:   claves a establecer, ej. {"retention.ms": "86400000", "cleanup.policy": "delete"}
+     *  - reset: claves a devolver al valor por defecto del broker, ej. ["retention.ms"]
+     * Solo se aceptan claves conocidas para evitar errores de tipeo que el broker rechazaria.
+     */
+    public Map<String, Object> updateTopicConfigs(String topic, Map<String, String> set, List<String> reset)
+            throws ExecutionException, InterruptedException {
+        requireExistingTopic(topic);
+        List<AlterConfigOp> ops = new ArrayList<>();
+        if (set != null) {
+            set.forEach((key, value) -> {
+                validateConfigKey(key);
+                ops.add(new AlterConfigOp(new ConfigEntry(key, value), AlterConfigOp.OpType.SET));
+            });
+        }
+        if (reset != null) {
+            reset.forEach(key -> {
+                validateConfigKey(key);
+                ops.add(new AlterConfigOp(new ConfigEntry(key, null), AlterConfigOp.OpType.DELETE));
+            });
+        }
+        if (ops.isEmpty()) {
+            throw new IllegalArgumentException("Debes indicar al menos una clave en 'set' o 'reset'");
+        }
+        ConfigResource res = new ConfigResource(ConfigResource.Type.TOPIC, topic);
+        admin.incrementalAlterConfigs(Map.of(res, ops)).all().get();
+        return describeTopic(topic);
+    }
+
+    /**
+     * Aumenta el numero de particiones de un topic. Kafka no permite disminuirlas,
+     * porque eso implicaria perder mensajes o romper el orden por key.
+     */
+    public Map<String, Object> increasePartitions(String topic, int totalCount)
+            throws ExecutionException, InterruptedException {
+        TopicDescription d = requireExistingTopic(topic);
+        int current = d.partitions().size();
+        if (totalCount <= current) {
+            throw new IllegalArgumentException("El topic " + topic + " ya tiene " + current
+                    + " particiones; solo se puede aumentar (Kafka no permite reducirlas)");
+        }
+        admin.createPartitions(Map.of(topic, NewPartitions.increaseTo(totalCount))).all().get();
+        return describeTopic(topic);
+    }
+
+    /**
+     * Elimina un topic. Por seguridad:
+     *  - los topics internos de Kafka (prefijo "__") nunca se pueden eliminar;
+     *  - los topics base del sistema solo se eliminan con force=true.
+     */
+    public Map<String, Object> deleteTopic(String topic, boolean force)
+            throws ExecutionException, InterruptedException {
+        if (topic.startsWith("__")) {
+            throw new IllegalArgumentException("El topic " + topic + " es interno de Kafka y no se puede eliminar");
+        }
+        if (PROTECTED_TOPICS.contains(topic) && !force) {
+            throw new IllegalArgumentException("El topic " + topic
+                    + " es parte del flujo de RutaExpress; usa force=true si realmente quieres eliminarlo");
+        }
+        requireExistingTopic(topic);
+        admin.deleteTopics(List.of(topic)).all().get();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("topic", topic);
+        result.put("deleted", true);
+        return result;
+    }
+
+    /**
+     * Elimina un consumer group (sus offsets guardados). Kafka solo lo permite si el grupo
+     * no tiene consumidores conectados (estado EMPTY o DEAD).
+     */
+    public Map<String, Object> deleteConsumerGroup(String groupId) throws ExecutionException, InterruptedException {
+        ConsumerGroupDescription g = admin.describeConsumerGroups(List.of(groupId)).all().get().get(groupId);
+        if (!g.members().isEmpty()) {
+            throw new IllegalArgumentException("El grupo " + groupId + " tiene " + g.members().size()
+                    + " consumidores activos; detenlos antes de eliminarlo");
+        }
+        admin.deleteConsumerGroups(List.of(groupId)).all().get();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("groupId", groupId);
+        result.put("deleted", true);
+        return result;
+    }
+
+    private TopicDescription requireExistingTopic(String topic) throws ExecutionException, InterruptedException {
+        if (!admin.listTopics().names().get().contains(topic)) {
+            throw new IllegalArgumentException("El topic " + topic + " no existe");
+        }
+        return admin.describeTopics(List.of(topic)).allTopicNames().get().get(topic);
+    }
+
+    private static void validateConfigKey(String key) {
+        if (!EDITABLE_CONFIGS.contains(key)) {
+            throw new IllegalArgumentException("Configuracion '" + key + "' no permitida. Claves validas: " + EDITABLE_CONFIGS);
+        }
+    }
+
+    // ---------------- Consumer groups ----------------
 
     public List<Map<String, Object>> listConsumerGroups() throws ExecutionException, InterruptedException {
         List<String> ids = admin.listConsumerGroups().all().get().stream()

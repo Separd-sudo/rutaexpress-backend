@@ -26,6 +26,7 @@ create shipments.events            delete          $((7 * DAY))
 create audit.timeline              compact,delete  $((30 * DAY))
 create shipments.events.audit.DLT  delete          $((14 * DAY))
 create shipments.events.report.DLT delete          $((14 * DAY))
+create audit.timeline.report.DLT   delete          $((14 * DAY))
 create rutaexpress.loadtest        delete          $((60 * 60 * 1000))
 
 echo "=== Topics actuales ==="
