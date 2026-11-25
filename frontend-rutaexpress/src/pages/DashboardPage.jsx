@@ -9,6 +9,8 @@ import AuditTimelineView from '../components/views/AuditTimelineView';
 import AuditLogView from '../components/views/AuditLogView';
 import CatalogAdminView from '../components/views/CatalogAdminView';
 import RabbitAdminView from '../components/views/RabbitAdminView';
+import KafkaReportView from '../components/views/KafkaReportView';
+import KafkaAdminView from '../components/views/KafkaAdminView';
 
 export const DashboardPage = () => {
   const { user, role, token, logout } = useAuth();
@@ -49,6 +51,8 @@ export const DashboardPage = () => {
           { id: 'audit_log', label: 'Bitacora' },
           { id: 'catalog', label: 'Catalogo y Tarifas' },
           { id: 'rabbitmq', label: 'RabbitMQ' },
+          { id: 'kafka_stream', label: 'Streaming Kafka' },
+          { id: 'kafka_admin', label: 'Kafka Admin' },
           { id: 'token', label: 'Sesion y Token' }
         ];
     }
@@ -215,6 +219,16 @@ export const DashboardPage = () => {
 
         {activeTab === 'rabbitmq' && (
           <RabbitAdminView />
+        )}
+
+        {/* Streaming Kafka: KPIs y auditoria consumidos desde los topics en tiempo cuasi real */}
+        {activeTab === 'kafka_stream' && (
+          <KafkaReportView />
+        )}
+
+        {/* Administracion del cluster Kafka: topics, consumer groups, laboratorio y DLT */}
+        {activeTab === 'kafka_admin' && (
+          <KafkaAdminView />
         )}
 
         {/* Pestaña original: Sesion y Token (100% conservada sin alterar) */}

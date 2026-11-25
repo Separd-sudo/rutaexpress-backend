@@ -113,6 +113,104 @@ export const bffApi = {
 
     const res = await bffClient.get('/api/bff/audit', { params });
     return res.data;
+  },
+
+  // ---------------- Reporteria (consumidores Kafka de ms-rutaexpress-report) ----------------
+
+  // KPIs calculados desde el topic shipments.events
+  getReportKpis: async (range = 'last24h') => {
+    const res = await bffClient.get('/api/bff/report/kpis', { params: { range } });
+    return res.data;
+  },
+
+  // Servicios de envio mas usados
+  getReportTopServices: async (range = 'last7d', limit = 5) => {
+    const res = await bffClient.get('/api/bff/report/top-services', { params: { range, limit } });
+    return res.data;
+  },
+
+  // Ultimos eventos consumidos de shipments.events (incluye particion y offset)
+  getReportRecentEvents: async (limit = 20) => {
+    const res = await bffClient.get('/api/bff/report/events/recent', { params: { limit } });
+    return res.data;
+  },
+
+  // Actividad por usuario consumida desde el topic audit.timeline
+  getReportActivity: async (range = 'last24h', limit = 10) => {
+    const res = await bffClient.get('/api/bff/report/activity', { params: { range, limit } });
+    return res.data;
+  },
+
+  // ---------------- Administracion Kafka (ms-rutaexpress-kafka) ----------------
+
+  getKafkaCluster: async () => {
+    const res = await bffClient.get('/api/bff/kafka/cluster');
+    return res.data;
+  },
+
+  getKafkaTopics: async () => {
+    const res = await bffClient.get('/api/bff/kafka/topics');
+    return res.data;
+  },
+
+  getKafkaTopic: async (topic) => {
+    const res = await bffClient.get(`/api/bff/kafka/topics/${encodeURIComponent(topic)}`);
+    return res.data;
+  },
+
+  createKafkaTopic: async (payload) => {
+    const res = await bffClient.post('/api/bff/kafka/topics', payload);
+    return res.data;
+  },
+
+  // set: { clave: valor } para cambiar; reset: [claves] para volver al valor por defecto
+  updateKafkaTopicConfigs: async (topic, set = {}, reset = []) => {
+    const res = await bffClient.put(`/api/bff/kafka/topics/${encodeURIComponent(topic)}/configs`, { set, reset });
+    return res.data;
+  },
+
+  increaseKafkaPartitions: async (topic, totalCount) => {
+    const res = await bffClient.post(`/api/bff/kafka/topics/${encodeURIComponent(topic)}/partitions`, { totalCount });
+    return res.data;
+  },
+
+  deleteKafkaTopic: async (topic, force = false) => {
+    const res = await bffClient.delete(`/api/bff/kafka/topics/${encodeURIComponent(topic)}`, { params: { force } });
+    return res.data;
+  },
+
+  getKafkaConsumerGroups: async () => {
+    const res = await bffClient.get('/api/bff/kafka/consumer-groups');
+    return res.data;
+  },
+
+  getKafkaConsumerLag: async (groupId) => {
+    const res = await bffClient.get(`/api/bff/kafka/consumer-groups/${encodeURIComponent(groupId)}/lag`);
+    return res.data;
+  },
+
+  getKafkaDltMessages: async (dltTopic, limit = 20) => {
+    const res = await bffClient.get(`/api/bff/kafka/dlt/${encodeURIComponent(dltTopic)}/messages`, { params: { limit } });
+    return res.data;
+  },
+
+  reprocessKafkaDlt: async (dltTopic, partition, offset) => {
+    const res = await bffClient.post(`/api/bff/kafka/dlt/${encodeURIComponent(dltTopic)}/reprocess`, null, {
+      params: { partition, offset }
+    });
+    return res.data;
+  },
+
+  // Publica un evento de prueba con key (misma key = misma particion)
+  publishKafkaTestEvent: async (key) => {
+    const res = await bffClient.post('/api/bff/kafka/lab/publish', null, { params: { key } });
+    return res.data;
+  },
+
+  // tipo: transient-failure | poison-pill | invalid-payload
+  simulateKafkaError: async (tipo) => {
+    const res = await bffClient.post(`/api/bff/kafka/lab/simulate/${tipo}`);
+    return res.data;
   }
 };
 
