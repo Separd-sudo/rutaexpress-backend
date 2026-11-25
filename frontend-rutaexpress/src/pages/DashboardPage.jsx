@@ -51,7 +51,7 @@ export const DashboardPage = () => {
           { id: 'audit_log', label: 'Bitacora' },
           { id: 'catalog', label: 'Catalogo y Tarifas' },
           { id: 'rabbitmq', label: 'RabbitMQ' },
-          { id: 'kafka_stream', label: 'Streaming Kafka' },
+          { id: 'kafka_stream', label: 'Reporteria (Kafka)' },
           { id: 'kafka_admin', label: 'Kafka Admin' },
           { id: 'token', label: 'Sesion y Token' }
         ];

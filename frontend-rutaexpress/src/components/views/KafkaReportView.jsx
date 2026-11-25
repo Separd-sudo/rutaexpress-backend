@@ -37,6 +37,54 @@ const TopicTag = ({ topic, group }) => (
   </span>
 );
 
+/**
+ * Grafico de barras "Envios creados por hora" (requerimiento del panel de operaciones del caso).
+ * Una sola serie, un solo color; cada barra muestra hora y cantidad al pasar el mouse.
+ */
+const ShipmentsPerHourChart = ({ series }) => {
+  const [hover, setHover] = useState(null);
+  if (!series || series.length === 0) {
+    return <div style={{ fontSize: '0.8125rem', color: '#94a3b8' }}>Sin datos</div>;
+  }
+  const max = Math.max(1, ...series.map((p) => p.count));
+  const hourLabel = (h) => h.slice(11, 16);
+
+  return (
+    <div>
+      <div style={{ position: 'relative', height: '140px', display: 'flex', alignItems: 'flex-end', gap: '2px', borderBottom: '1px solid #cbd5e1' }}>
+        {series.map((p, i) => (
+          <div
+            key={p.hour}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover(null)}
+            style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', cursor: 'default' }}
+          >
+            <div style={{
+              width: '100%',
+              height: p.count > 0 ? `${Math.max(4, (p.count / max) * 100)}%` : '0',
+              backgroundColor: hover === i ? '#1e40af' : '#3b82f6',
+              borderRadius: '4px 4px 0 0'
+            }} />
+          </div>
+        ))}
+        {hover !== null && (
+          <div style={{
+            position: 'absolute', top: 0, left: `${((hover + 0.5) / series.length) * 100}%`, transform: 'translateX(-50%)',
+            backgroundColor: '#0f172a', color: '#ffffff', fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '4px', whiteSpace: 'nowrap', pointerEvents: 'none'
+          }}>
+            {series[hover].hour.replace('T', ' ')} · {series[hover].count} envios
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
+        <span>{hourLabel(series[0].hour)}</span>
+        <span>Maximo: {max} envios/hora</span>
+        <span>{hourLabel(series[series.length - 1].hour)}</span>
+      </div>
+    </div>
+  );
+};
+
 const formatTime = (value) => {
   if (!value) return '-';
   const d = new Date(value);
@@ -136,6 +184,12 @@ export const KafkaReportView = () => {
           <KpiCard label="Envios creados" value={kpis?.shipmentsCreated} />
           <KpiCard label="Envios entregados" value={kpis?.shipmentsDelivered} hint={`Lead time prom.: ${kpis?.leadTime?.avgMinutes ?? 0} min`} />
           <KpiCard label="Envios activos" value={kpis?.activeTotal} hint="foto actual" />
+        </div>
+
+        {/* Envios por hora (serie calculada por report-svc) */}
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: '0.375rem', padding: '1rem', marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#64748b', fontWeight: 600, marginBottom: '0.75rem' }}>Envios creados por hora</div>
+          <ShipmentsPerHourChart series={kpis?.shipmentsPerHour} />
         </div>
 
         <div className="grid-2" style={{ marginBottom: '1.5rem' }}>
