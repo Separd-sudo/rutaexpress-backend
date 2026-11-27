@@ -17,6 +17,8 @@
         <module>ms-rutaexpress-shipments</module>
         <module>ms-rutaexpress-bff</module>
         <module>ms-rutaexpress-rabbitmq</module>
+        <module>ms-rutaexpress-report</module>
+        <module>ms-rutaexpress-kafka</module>
     </modules>
 
     <properties>

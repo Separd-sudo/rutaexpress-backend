@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -35,101 +36,111 @@ public class BffRabbitMQController {
     @PostMapping("/queues")
     @Operation(summary = "Crear cola en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> createQueue(@RequestBody Map<String, Object> body) {
-        return rabbitClient.post()
+        Map<String, Object> response = rabbitClient.post()
                 .uri("/api/rabbitmq/queues")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/queues/{name}")
     @Operation(summary = "Consultar información de cola en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> getQueueInfo(@PathVariable("name") String name) {
-        return rabbitClient.get()
+        Map<String, Object> response = rabbitClient.get()
                 .uri("/api/rabbitmq/queues/{name}", name)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/queues/{name}")
     @Operation(summary = "Eliminar cola en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> deleteQueue(@PathVariable("name") String name) {
-        return rabbitClient.delete()
+        Map<String, Object> response = rabbitClient.delete()
                 .uri("/api/rabbitmq/queues/{name}", name)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/queues/{name}/purge")
     @Operation(summary = "Purgar mensajes de una cola en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> purgeQueue(@PathVariable("name") String name) {
-        return rabbitClient.post()
+        Map<String, Object> response = rabbitClient.post()
                 .uri("/api/rabbitmq/queues/{name}/purge", name)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/exchanges")
     @Operation(summary = "Crear exchange en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> createExchange(@RequestBody Map<String, Object> body) {
-        return rabbitClient.post()
+        Map<String, Object> response = rabbitClient.post()
                 .uri("/api/rabbitmq/exchanges")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @DeleteMapping("/exchanges/{name}")
     @Operation(summary = "Eliminar exchange en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> deleteExchange(@PathVariable("name") String name) {
-        return rabbitClient.delete()
+        Map<String, Object> response = rabbitClient.delete()
                 .uri("/api/rabbitmq/exchanges/{name}", name)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/bindings")
     @Operation(summary = "Crear binding en RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> createBinding(@RequestBody Map<String, Object> body) {
-        return rabbitClient.post()
+        Map<String, Object> response = rabbitClient.post()
                 .uri("/api/rabbitmq/bindings")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/events")
     @Operation(summary = "Obtener eventos procesados por RabbitMQ (BFF)")
     public ResponseEntity<List<Map<String, Object>>> getRabbitEvents() {
-        return rabbitClient.get()
+        List<Map<String, Object>> response = rabbitClient.get()
                 .uri("/api/rabbitmq/events")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/dlq")
     @Operation(summary = "Obtener mensajes en cuarentena en DLQ (BFF)")
     public ResponseEntity<List<Map<String, Object>>> getDlqEvents() {
-        return rabbitClient.get()
+        List<Map<String, Object>> response = rabbitClient.get()
                 .uri("/api/rabbitmq/dlq")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+                .body(new ParameterizedTypeReference<List<Map<String, Object>>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/metrics")
     @Operation(summary = "Obtener métricas y tasa de DLQ (BFF)")
     public ResponseEntity<Map<String, Object>> getMetrics() {
-        return rabbitClient.get()
+        Map<String, Object> response = rabbitClient.get()
                 .uri("/api/rabbitmq/metrics")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/publish")
@@ -137,7 +148,7 @@ public class BffRabbitMQController {
     public ResponseEntity<Map<String, Object>> publishEvent(
             @RequestBody Map<String, Object> payload,
             @RequestParam(name = "simulateFailure", defaultValue = "false") boolean simulateFailure) {
-        return rabbitClient.post()
+        Map<String, Object> response = rabbitClient.post()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/rabbitmq/publish")
                         .queryParam("simulateFailure", simulateFailure)
@@ -145,16 +156,18 @@ public class BffRabbitMQController {
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(payload)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
     }
 
     @GetMapping("/health")
     @Operation(summary = "Verificar estado del microservicio RabbitMQ (BFF)")
     public ResponseEntity<Map<String, Object>> getRabbitHealth() {
-        return rabbitClient.get()
+        Map<String, Object> response = rabbitClient.get()
                 .uri("/api/rabbitmq/health")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .toEntity(new ParameterizedTypeReference<Map<String, Object>>() {});
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        return ResponseEntity.ok(response);
     }
 }

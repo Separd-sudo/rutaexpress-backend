@@ -9,6 +9,10 @@ import lombok.*;
 @Builder
 public class CreateAuditEventRequest {
 
+    /** Opcional: si el productor envia su eventId, se usa para deduplicar (idempotencia). */
+    private String eventId;
+    private String source;
+
     private Long shipmentId;
     private String trackingNumber;
 

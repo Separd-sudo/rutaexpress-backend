@@ -74,6 +74,8 @@ public class ShipmentService {
         auditClient.sendAuditEvent(
                 saved.getId(),
                 saved.getTrackingNumber(),
+                saved.getServiceId(),
+                saved.getServiceCode(),
                 "SHIPMENT_CREATED",
                 null,
                 ShipmentStatus.CREADO.name(),
@@ -158,6 +160,8 @@ public class ShipmentService {
         auditClient.sendAuditEvent(
                 updated.getId(),
                 updated.getTrackingNumber(),
+                updated.getServiceId(),
+                updated.getServiceCode(),
                 "STATUS_CHANGED_" + target.name(),
                 current.name(),
                 target.name(),
@@ -181,6 +185,8 @@ public class ShipmentService {
         auditClient.sendAuditEvent(
                 shipment.getId(),
                 shipment.getTrackingNumber(),
+                shipment.getServiceId(),
+                shipment.getServiceCode(),
                 "ENVIO_ELIMINADO",
                 shipment.getStatus().name(),
                 "ELIMINADO",

@@ -341,6 +341,240 @@ Resources:
       AuthorizationScopes: [!Ref RequiredScope]
 
   # ===========================================================================
+  # 4b. RUTAS PROTEGIDAS: REPORTERÍA (KPIs) Y ADMINISTRACIÓN KAFKA
+  # ===========================================================================
+
+  GetReportKpisRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/report/kpis'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetReportTopServicesRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/report/top-services'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetReportRecentEventsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/report/events/recent'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetReportActivityRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/report/activity'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetKafkaHealthRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/health'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetKafkaClusterRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/cluster'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  ListKafkaTopicsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/topics'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetKafkaTopicRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/topics/{topic}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  CreateKafkaTopicRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/topics'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  UpdateKafkaTopicConfigsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'PUT /api/kafka/topics/{topic}/configs'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  IncreaseKafkaTopicPartitionsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/topics/{topic}/partitions'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteKafkaTopicRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/kafka/topics/{topic}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  DeleteKafkaConsumerGroupRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'DELETE /api/kafka/consumer-groups/{groupId}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  ListKafkaConsumerGroupsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/consumer-groups'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetKafkaConsumerLagRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/consumer-groups/{groupId}/lag'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  GetKafkaDltMessagesRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'GET /api/kafka/dlt/{topic}/messages'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  ReprocessKafkaDltRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/dlt/{topic}/reprocess'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  KafkaLabPublishRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/lab/publish'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  KafkaLabTransientFailureRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/lab/simulate/transient-failure'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  KafkaLabPoisonPillRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/lab/simulate/poison-pill'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  KafkaLabInvalidPayloadRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/lab/simulate/invalid-payload'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  KafkaLabLoadTestRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/lab/load-test'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  KafkaLabConsumerActionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref RutaExpressHttpApi
+      RouteKey: 'POST /api/kafka/lab/load-test/consumer/{action}'
+      Target: !Sub 'integrations/${RutaExpressBffIntegration}'
+      AuthorizationType: JWT
+      AuthorizerId: !Ref RutaExpressJwtAuthorizer
+      AuthorizationScopes: [!Ref RequiredScope]
+
+  # ===========================================================================
   # 5. RUTAS PÚBLICAS DE DOCUMENTACIÓN Y SALUD (SWAGGER / HEALTH)
   # ===========================================================================
 

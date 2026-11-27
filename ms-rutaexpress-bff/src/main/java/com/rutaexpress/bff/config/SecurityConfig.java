@@ -78,6 +78,10 @@ public class SecurityConfig {
                     // 7. Admin: Métricas operacionales y gestión de colas RabbitMQ
                     .requestMatchers("/api/bff/rabbitmq/**", "/api/rabbitmq/**").hasRole("Admin")
 
+                    // 8. Admin: Reporteria (KPIs por streaming Kafka) y administracion del cluster Kafka
+                    .requestMatchers("/api/bff/report/**", "/api/report/**").hasRole("Admin")
+                    .requestMatchers("/api/bff/kafka/**", "/api/kafka/**").hasRole("Admin")
+
                     .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2

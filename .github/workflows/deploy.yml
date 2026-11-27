@@ -49,7 +49,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 6. Construir y subir las 5 imágenes a GHCR
+      # 6. Construir y subir las 7 imágenes a GHCR
       - name: Build and push Catalog image
         uses: docker/build-push-action@v5
         with:
@@ -82,6 +82,22 @@ jobs:
           push: true
           tags: ghcr.io/separd-sudo/ms-rutaexpress-shipments:latest
 
+      - name: Build and push Report image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./ms-rutaexpress-report/Dockerfile
+          push: true
+          tags: ghcr.io/separd-sudo/ms-rutaexpress-report:latest
+
+      - name: Build and push Kafka Admin image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./ms-rutaexpress-kafka/Dockerfile
+          push: true
+          tags: ghcr.io/separd-sudo/ms-rutaexpress-kafka:latest
+
       - name: Build and push BFF image
         uses: docker/build-push-action@v5
         with:
@@ -96,6 +112,7 @@ jobs:
           SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
           RDS_HOST: ${{ secrets.RDS_HOST }}
           RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          KAFKA_BOOTSTRAP_SERVERS: ${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}
           RDS_PORT: ${{ env.RDS_PORT }}
           RDS_USERNAME: ${{ env.RDS_USERNAME }}
         run: |
@@ -125,6 +142,8 @@ jobs:
             RDS_PORT="${{ env.RDS_PORT }}"
             RDS_USERNAME="${{ env.RDS_USERNAME }}"
             RDS_PASSWORD="${{ secrets.RDS_PASSWORD }}"
+            # IP privada de la EC2 de Kafka, ej: 172.31.x.x:9092,172.31.x.x:9093,172.31.x.x:9094
+            KAFKA_BOOTSTRAP_SERVERS="${{ secrets.KAFKA_BOOTSTRAP_SERVERS }}"
 
             echo "=== CONECTADO A EC2: $EC2_IP ==="
             cd /home/ec2-user
@@ -152,8 +171,8 @@ jobs:
             # 3. Configurar variables de base de datos
             (
               umask 077
-              printf 'RDS_HOST=%s\nRDS_PORT=%s\nRDS_USERNAME=%s\nRDS_PASSWORD=%s\n' \
-                "$RDS_HOST" "$RDS_PORT" "$RDS_USERNAME" "$RDS_PASSWORD" > .env
+              printf 'RDS_HOST=%s\nRDS_PORT=%s\nRDS_USERNAME=%s\nRDS_PASSWORD=%s\nKAFKA_BOOTSTRAP_SERVERS=%s\n' \
+                "$RDS_HOST" "$RDS_PORT" "$RDS_USERNAME" "$RDS_PASSWORD" "$KAFKA_BOOTSTRAP_SERVERS" > .env
             )
 
             # 4. Autenticar con GHCR y descargar imagenes
